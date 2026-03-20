@@ -41,6 +41,33 @@ const SCORE_OPTIONS = [
 const scoreColor = s => s >= 80 ? '#52c41a' : s >= 60 ? '#fa8c16' : '#f5222d'
 const scoreBg = s => s >= 80 ? '#f6ffed' : s >= 60 ? '#fff7e6' : '#fff2f0'
 
+const SCORE_DIMENSIONS = ['业务匹配度', '时效紧迫性', '预算确定性', '竞争可赢性']
+
+const buildScoreBreakdown = (lead) => {
+  // 如果后端/Mock 已提供结构化评分，优先使用
+  if (Array.isArray(lead?.scoreDetails) && lead.scoreDetails.length) {
+    return SCORE_DIMENSIONS.map((label, i) => ({
+      label,
+      text: lead.scoreDetails[i] || '该维度信息待补充。',
+    }))
+  }
+
+  // 兼容当前 scoreReason 的长文本，按标点自动拆分为4段
+  const parts = String(lead?.scoreReason || '')
+    .split(/[；;。]/)
+    .map(s => s.trim())
+    .filter(Boolean)
+
+  const fallback = [
+    parts[0] || '与当前产品能力存在一定匹配，建议结合需求清单进一步核验。',
+    parts[1] || '项目窗口期建议按周跟进，优先确认立项与采购时间节点。',
+    parts[2] || (lead?.budget ? `已出现预算信号（约${lead.budget}万元），建议尽快锁定资金来源与科目。` : '预算尚未明确，建议先摸清资金来源与年度预算安排。'),
+    parts[3] || '建议补充竞品与关系链信息，形成差异化突破策略。',
+  ]
+
+  return SCORE_DIMENSIONS.map((label, i) => ({ label, text: fallback[i] }))
+}
+
 const statusMap = {
   pending: { color: 'default', name: '待跟进' },
   contacting: { color: 'blue', name: '接触中' },
@@ -63,6 +90,7 @@ function ScoreBadge({ score }) {
 
 function LeadDetailDrawer({ lead, onClose, onStatusChange }) {
   if (!lead) return null
+  const scoreBreakdown = buildScoreBreakdown(lead)
 
   const handleStatus = async (status) => {
     await updateLeadStatus(lead.id, status)
@@ -83,7 +111,14 @@ function LeadDetailDrawer({ lead, onClose, onStatusChange }) {
           </div>
           <div style={{ flex: 1 }}>
             <Text strong>📊 评分理由</Text>
-            <Paragraph style={{ margin: '6px 0 0', fontSize: 13, color: '#555' }}>{lead.scoreReason}</Paragraph>
+            <div style={{ marginTop: 8, display: 'grid', gap: 6 }}>
+              {scoreBreakdown.map(item => (
+                <div key={item.label} style={{ background: '#fff', borderRadius: 6, padding: '6px 8px', border: '1px solid #f0f0f0' }}>
+                  <Text strong style={{ fontSize: 12, color: '#333' }}>{item.label}：</Text>
+                  <Text style={{ fontSize: 12, color: '#555' }}>{item.text}</Text>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </Card>

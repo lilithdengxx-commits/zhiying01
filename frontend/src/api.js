@@ -82,7 +82,7 @@ export const getCompetitors = async () => {
   const r = await fetch('/api/competitors'); return r.json()
 }
 
-// ---- 政企图谱 ----
+// ---- 客户管理 ----
 export const getCustomers = async () => {
   if (USE_MOCK) { await delay(); return { data: mock.customers } }
   const r = await fetch('/api/graph/customers'); return r.json()

@@ -281,7 +281,7 @@ export default function GovGraph() {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0 }}>🗺️ 政企图谱</Title>
+        <Title level={4} style={{ margin: 0 }}>🗺️ 客户管理</Title>
         <Text type="secondary">从一锤子买卖到长效经营 · 存量客户价值罗盘</Text>
       </div>
 

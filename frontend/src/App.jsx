@@ -4,7 +4,7 @@ import { Layout, Menu, Typography, Avatar, Space, Badge, ConfigProvider, theme, 
 import {
   DashboardOutlined, BulbOutlined, RadarChartOutlined, FileSearchOutlined,
   ApartmentOutlined, CalendarOutlined, FileTextOutlined, BellOutlined,
-  UserOutlined, MenuFoldOutlined, MenuUnfoldOutlined, GlobalOutlined,
+  UserOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
 } from '@ant-design/icons'
 import Dashboard from './pages/Dashboard'
 import LeadPool from './pages/LeadPool'
@@ -22,7 +22,7 @@ const NAV_ITEMS = [
   { key: '/leads', label: '智能线索池', icon: <BulbOutlined /> },
   { key: '/policy', label: '政策雷达', icon: <RadarChartOutlined /> },
   { key: '/bidding', label: '标讯雷达', icon: <FileSearchOutlined /> },
-  { key: '/graph', label: '政企图谱', icon: <ApartmentOutlined /> },
+  { key: '/graph', label: '客户管理', icon: <ApartmentOutlined /> },
   { key: '/calendar', label: '营销日历', icon: <CalendarOutlined /> },
   { key: '/briefing', label: '每日线索简报', icon: <FileTextOutlined /> },
 ]
@@ -110,19 +110,16 @@ function AppInner() {
             </Text>
           </Space>
           <Space size={20}>
-            <Tooltip title="系统文档">
-              <Button type="text" icon={<GlobalOutlined />} />
-            </Tooltip>
             <Tooltip title="7条未读消息">
               <Badge count={7} size="small" offset={[-2, 2]}>
                 <Button type="text" icon={<BellOutlined style={{ fontSize: 17 }} />} />
               </Badge>
             </Tooltip>
-            <Space>
+            <Space size={8} align="center">
               <Avatar size={32} icon={<UserOutlined />} style={{ background: '#1677ff', cursor: 'pointer' }} />
-              <div>
-                <Text style={{ fontSize: 13, fontWeight: 500, display: 'block', lineHeight: 1.2 }}>张三</Text>
-                <Text type="secondary" style={{ fontSize: 11 }}>华南区销售总监</Text>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', lineHeight: 1.15 }}>
+                <Text style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 2 }}>张三</Text>
+                <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>华南区销售总监</Text>
               </div>
             </Space>
           </Space>

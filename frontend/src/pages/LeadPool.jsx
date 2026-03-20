@@ -38,6 +38,15 @@ const SCORE_OPTIONS = [
   { value: '60', label: '≥60 中分' },
 ]
 
+const SIGNAL_SOURCE_OPTIONS = [
+  { value: '', label: '全部信号源' },
+  { value: '招投标公告', label: '招投标公告' },
+  { value: '企业新闻', label: '企业新闻' },
+  { value: '政策文件', label: '政策文件' },
+  { value: '行业媒体', label: '行业媒体' },
+  { value: '其他信源', label: '其他信源' },
+]
+
 const scoreColor = s => s >= 80 ? '#52c41a' : s >= 60 ? '#fa8c16' : '#f5222d'
 const scoreBg = s => s >= 80 ? '#f6ffed' : s >= 60 ? '#fff7e6' : '#fff2f0'
 
@@ -73,6 +82,22 @@ const statusMap = {
   contacting: { color: 'blue', name: '接触中' },
   filed: { color: 'green', name: '已立项' },
   closed: { color: 'red', name: '无效关闭' },
+}
+
+const inferSignalSource = (lead) => {
+  if (lead?.signalSource) return lead.signalSource
+
+  const byType = {
+    bidding: '招投标公告',
+    policy: '政策文件',
+    renewal: '企业新闻',
+    subcontract: '行业媒体',
+    personnel: '企业新闻',
+    budget: '政策文件',
+    exhibition: '行业媒体',
+  }
+
+  return byType[lead?.type] || '其他信源'
 }
 
 function ScoreBadge({ score }) {
@@ -129,6 +154,7 @@ function LeadDetailDrawer({ lead, onClose, onStatusChange }) {
 
       <div style={{ background: '#fafafa', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
         {[
+          { label: '信号源', value: inferSignalSource(lead) },
           { label: '来源', value: lead.source },
           { label: '地区', value: `${lead.region} · ${lead.city}` },
           { label: '部门', value: lead.department },
@@ -173,7 +199,7 @@ function LeadDetailDrawer({ lead, onClose, onStatusChange }) {
 export default function LeadPool() {
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({ type: '', status: '', minScore: '', keyword: '' })
+  const [filters, setFilters] = useState({ type: '', status: '', signalSource: '', minScore: '', keyword: '' })
   const [selectedLead, setSelectedLead] = useState(null)
 
   const fetchLeads = async (f = filters) => {
@@ -221,6 +247,10 @@ export default function LeadPool() {
     {
       title: '状态', dataIndex: 'status', key: 'status', width: 90,
       render: s => <Tag color={statusMap[s]?.color}>{statusMap[s]?.name}</Tag>,
+    },
+    {
+      title: '信号源', key: 'signalSource', width: 110,
+      render: (_, row) => <Text style={{ fontSize: 12 }}>{inferSignalSource(row)}</Text>,
     },
     {
       title: '标签', dataIndex: 'tags', key: 'tags', width: 200,
@@ -305,12 +335,18 @@ export default function LeadPool() {
           </Col>
           <Col>
             <Select
+              style={{ width: 120 }} options={SIGNAL_SOURCE_OPTIONS} value={filters.signalSource}
+              onChange={v => handleFilter('signalSource', v)} placeholder="信号源"
+            />
+          </Col>
+          <Col>
+            <Select
               style={{ width: 110 }} options={SCORE_OPTIONS} value={filters.minScore}
               onChange={v => handleFilter('minScore', v)} placeholder="最低评分"
             />
           </Col>
           <Col>
-            <Button onClick={() => { setFilters({ type: '', status: '', minScore: '', keyword: '' }); fetchLeads({ type: '', status: '', minScore: '', keyword: '' }) }}>
+            <Button onClick={() => { setFilters({ type: '', status: '', signalSource: '', minScore: '', keyword: '' }); fetchLeads({ type: '', status: '', signalSource: '', minScore: '', keyword: '' }) }}>
               重置
             </Button>
           </Col>

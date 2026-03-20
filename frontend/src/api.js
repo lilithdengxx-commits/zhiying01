@@ -3,7 +3,7 @@
 // USE_MOCK=false 时通过 Vite proxy 请求后端 http://localhost:3001
 import * as mock from './mockData'
 
-const USE_MOCK = true
+const USE_MOCK = false
 
 const delay = (ms = 300) => new Promise(r => setTimeout(r, ms))
 
@@ -25,6 +25,18 @@ export const getLeads = async (filters = {}) => {
     let result = [...mock.leads]
     if (filters.type) result = result.filter(l => l.type === filters.type)
     if (filters.status) result = result.filter(l => l.status === filters.status)
+    if (filters.signalSource) result = result.filter(l => {
+      const source = l.signalSource || ({
+        bidding: '招投标公告',
+        policy: '政策文件',
+        renewal: '企业新闻',
+        subcontract: '行业媒体',
+        personnel: '企业新闻',
+        budget: '政策文件',
+        exhibition: '行业媒体',
+      }[l.type] || '其他信源')
+      return source === filters.signalSource
+    })
     if (filters.minScore) result = result.filter(l => l.score >= Number(filters.minScore))
     if (filters.region) result = result.filter(l => l.region.includes(filters.region))
     if (filters.keyword) result = result.filter(l => l.title.includes(filters.keyword) || l.summary.includes(filters.keyword))

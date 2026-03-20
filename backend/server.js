@@ -2,6 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const cron = require('node-cron')
 const { scrapeLatest } = require('./scrapers/ccgp')
+const { scrapeXinhuaLatest, XINHUA_URL } = require('./scrapers/xinhua')
 
 const app = express()
 app.use(cors())
@@ -27,6 +28,8 @@ let crawlerStatus = {
 }
 // 从政府采购网实时抓取的标讯（追加到 bids 末尾）
 let ccgpBids = []
+// 从新华网实时抓取的政策信号
+let xinhuaPolicies = []
 
 async function runCrawler() {
   if (crawlerStatus.running) {
@@ -75,6 +78,7 @@ async function runCrawler() {
           type: 'bidding',
           typeName: '招采动作',
           typeColor: 'blue',
+          signalSource: '招投标公告',
           score: bid.score,
           scoreReason: `由政府采购网实时抓取，关键词匹配度高。公告类型：${bid.status}`,
           summary: bid.description,
@@ -99,6 +103,67 @@ async function runCrawler() {
     }
     ccgpBids.push(...newBids)
     crawlerStatus.totalFetched += newBids.length
+
+    // 新华网信息公开数据抓取（政策信号）
+    console.log('[XINHUA] ── 开始抓取新华网信息公开数据 ──')
+    const xinhuaItems = await scrapeXinhuaLatest()
+    const existingPolicyIds = new Set([...policies.map(p => p.id), ...xinhuaPolicies.map(p => p.id)])
+    const newPolicies = xinhuaItems
+      .filter(item => !existingPolicyIds.has(item.id))
+      .map(item => ({
+        id: item.id,
+        title: item.title,
+        level: 'national',
+        region: '全国',
+        publishedAt: item.publishedAt,
+        summary: `来源新华网信息公开栏目，建议结合业务场景进行政策研判：${item.title}`,
+        relevantTasks: ['识别政策导向', '提炼商机任务', '匹配潜在客户部门'],
+        potentialDepts: ['各级政务服务管理部门', '各地大数据局'],
+        budgetSignal: '预算信号需结合各省市预算公告进一步确认',
+        score: item.score,
+        source: '新华网信息公开',
+        sourceUrl: item.sourceUrl,
+        isRealtime: true,
+      }))
+
+    // 将高分政策同时推进线索池
+    const existingLeadIds2 = new Set(leads.map(l => l.id))
+    for (const p of newPolicies) {
+      if (p.score >= 70 && !existingLeadIds2.has(p.id)) {
+        leads.push({
+          id: p.id,
+          title: p.title,
+          type: 'policy',
+          typeName: '政策驱动',
+          typeColor: 'green',
+          signalSource: '政策文件',
+          score: p.score,
+          scoreReason: '由新华网信息公开栏目实时抓取，具备政策驱动价值。',
+          summary: p.summary,
+          source: '新华网信息公开',
+          sourceUrl: p.sourceUrl,
+          region: '全国',
+          city: '全国',
+          status: 'pending',
+          createdAt: p.publishedAt,
+          updatedAt: new Date().toISOString().split('T')[0],
+          nextAction: '建议政策研究团队在24小时内完成解读，并分发至对应战区跟进。',
+          budget: null,
+          department: '新华社/政策发布相关部门',
+          contact: null,
+          contactRole: null,
+          tags: ['实时抓取', '新华网', '政策信号'],
+          deadline: null,
+          isRealtime: true,
+        })
+        existingLeadIds2.add(p.id)
+      }
+    }
+
+    xinhuaPolicies.push(...newPolicies)
+    crawlerStatus.totalFetched += newPolicies.length
+    console.log(`[XINHUA] ── 完成，新增 ${newPolicies.length} 条政策信号，线索池已同步 ──`)
+
     crawlerStatus.lastSuccess = new Date().toISOString()
     console.log(`[CCGP] ── 完成，新增 ${newBids.length} 条标讯，线索池已同步 ──`)
   } catch (err) {
@@ -298,6 +363,32 @@ const leads = [
     tags: ['老客户续签', '城市管理', '华北区'], deadline: '2026-05-30',
   },
 ]
+
+// ============================================================
+// 线索信号源归类（用于筛选）
+// 五类：招投标公告、企业新闻、政策文件、行业媒体、其他信源
+// ============================================================
+const SIGNAL_SOURCE_BY_TYPE = {
+  bidding: '招投标公告',
+  subcontract: '招投标公告',
+  policy: '政策文件',
+  budget: '政策文件',
+  renewal: '企业新闻',
+  personnel: '企业新闻',
+  exhibition: '行业媒体',
+  manual: '行业媒体',
+}
+
+function inferSignalSource(lead) {
+  const src = `${lead.source || ''}`
+  if (src.includes('采购') || src.includes('交易平台') || src.includes('中标')) return '招投标公告'
+  if (src.includes('新华网') || src.includes('政府') || src.includes('财政') || src.includes('大数据局')) return '政策文件'
+  return SIGNAL_SOURCE_BY_TYPE[lead.type] || '其他信源'
+}
+
+leads.forEach(l => {
+  if (!l.signalSource) l.signalSource = inferSignalSource(l)
+})
 
 // ============================================================
 // 模拟数据 · 政策库
@@ -598,11 +689,12 @@ app.get('/api/dashboard/todos', (req, res) => {
 // 线索列表（支持过滤）
 app.get('/api/leads', (req, res) => {
   let result = [...leads]
-  const { type, status, minScore, region, keyword } = req.query
+  const { type, status, minScore, region, keyword, signalSource } = req.query
   if (type) result = result.filter(l => l.type === type)
   if (status) result = result.filter(l => l.status === status)
   if (minScore) result = result.filter(l => l.score >= Number(minScore))
   if (region) result = result.filter(l => l.region.includes(region))
+  if (signalSource) result = result.filter(l => (l.signalSource || inferSignalSource(l)) === signalSource)
   if (keyword) result = result.filter(l => l.title.includes(keyword) || l.summary.includes(keyword))
   result.sort((a, b) => b.score - a.score)
   res.json({ data: result, total: result.length })
@@ -629,7 +721,7 @@ app.patch('/api/leads/:id/status', (req, res) => {
 // 政策列表
 app.get('/api/policies', (req, res) => {
   const { level, region, keyword } = req.query
-  let result = [...policies]
+  let result = [...policies, ...xinhuaPolicies]
   if (level) result = result.filter(p => p.level === level)
   if (region) result = result.filter(p => p.region.includes(region))
   if (keyword) result = result.filter(p => p.title.includes(keyword) || p.summary.includes(keyword))
@@ -656,7 +748,9 @@ app.get('/api/crawler/status', (req, res) => {
   res.json({
     ...crawlerStatus,
     ccgpBidsCount: ccgpBids.length,
+    xinhuaPoliciesCount: xinhuaPolicies.length,
     keywords: require('./scrapers/ccgp').FILTER_KEYWORDS,
+    xinhuaSource: XINHUA_URL,
     nextRun: '每30分钟自动执行一次',
   })
 })

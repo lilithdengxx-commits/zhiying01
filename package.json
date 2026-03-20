@@ -1,0 +1,10 @@
+{
+  "name": "zhiying",
+  "version": "1.0.0",
+  "description": "智鹰 - ToG政企大客户AI商机挖掘系统",
+  "scripts": {
+    "setup": "cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm start",
+    "dev:frontend": "cd frontend && npm run dev"
+  }
+}

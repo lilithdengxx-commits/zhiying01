@@ -418,31 +418,37 @@ export const events = [
   },
 ]
 
-const makeBriefing = (date, slice) => ({
-  id: `BR-${date.replace(/-/g, '')}`, date,
-  title: `《智鹰ToG商机日报》· ${date}`,
-  stats: {
-    total: slice.length,
-    high: slice.filter(l => l.score >= 80).length,
-    medium: slice.filter(l => l.score >= 60 && l.score < 80).length,
-  },
-  highlights: slice.slice(0, 4).map(l => ({ id: l.id, title: l.title, score: l.score, type: l.typeName, nextAction: l.nextAction, region: l.region })),
-  sentChannels: ['飞书', '企业微信'],
-  conversionStats: {
-    pushed: slice.length,
-    claimed: Math.ceil(slice.length * 0.7),
-    converted: Math.ceil(slice.length * 0.3),
-  },
-})
+const makeBriefing = (date, slice) => {
+  const expanded = Array.from({ length: 20 }, (_, i) => slice[i % slice.length])
+
+  return {
+    id: `BR-${date.replace(/-/g, '')}`, date,
+    title: `《智鹰ToG商机日报》· ${date}`,
+    stats: {
+      total: expanded.length,
+      high: expanded.filter(l => l.score >= 80).length,
+      medium: expanded.filter(l => l.score >= 60 && l.score < 80).length,
+    },
+    highlights: expanded.map((l, i) => ({ id: `${l.id}-${date}-${i + 1}`, title: l.title, score: l.score, type: l.typeName, nextAction: l.nextAction, region: l.region })),
+    sentChannels: ['飞书', '企业微信'],
+    conversionStats: {
+      pushed: expanded.length,
+      claimed: Math.ceil(expanded.length * 0.7),
+      converted: Math.ceil(expanded.length * 0.3),
+    },
+  }
+}
 
 export const briefings = [
-  makeBriefing('2026-03-21', leads.slice(0, 5)),
-  makeBriefing('2026-03-20', leads.slice(2, 7)),
-  makeBriefing('2026-03-19', leads.slice(4, 9)),
-  makeBriefing('2026-03-18', leads.slice(6, 10)),
-  makeBriefing('2026-03-17', leads.slice(8, 12)),
-  makeBriefing('2026-03-14', leads.slice(10, 13)),
-  makeBriefing('2026-03-13', leads.slice(11, 14)),
+  ...Array.from({ length: 20 }, (_, i) => {
+    const date = new Date('2026-03-21')
+    date.setDate(date.getDate() - i)
+    const dateStr = date.toISOString().split('T')[0]
+    const start = (i * 2) % leads.length
+    const size = 4 + (i % 3)
+    const slice = Array.from({ length: size }, (_, k) => leads[(start + k) % leads.length])
+    return makeBriefing(dateStr, slice)
+  }),
 ]
 
 export const dashboardStats = {

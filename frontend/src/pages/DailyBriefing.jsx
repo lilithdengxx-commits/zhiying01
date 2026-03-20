@@ -24,6 +24,34 @@ const TYPE_COLORS = {
 function BriefingReport({ briefing }) {
   if (!briefing) return null
   const convRate = Math.round((briefing.conversionStats.converted / briefing.conversionStats.pushed) * 100)
+  const highlights = briefing.highlights || []
+  const totalCount = highlights.length
+  const avgScore = totalCount ? Math.round(highlights.reduce((s, h) => s + (h.score || 0), 0) / totalCount) : 0
+  const highCount = highlights.filter(h => (h.score || 0) >= 85).length
+  const typeCounter = highlights.reduce((acc, h) => {
+    const key = h.type || '其他'
+    acc[key] = (acc[key] || 0) + 1
+    return acc
+  }, {})
+  const topTypes = Object.entries(typeCounter)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([k, v]) => `${k}${v}条`)
+    .join('、')
+  const regionCounter = highlights.reduce((acc, h) => {
+    const key = h.region || '未知区域'
+    acc[key] = (acc[key] || 0) + 1
+    return acc
+  }, {})
+  const topRegions = Object.entries(regionCounter)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([k, v]) => `${k}${v}条`)
+    .join('、')
+  const actionAdvice =
+    highCount >= 8
+      ? '建议立即建立A类攻坚清单，优先推进高分线索的一对一拜访与方案递交，并在48小时内完成负责人认领。'
+      : '建议按区域建立分层跟进节奏，先完成核心部门需求确认，再将中分线索转入持续培育池。'
 
   return (
     <div>
@@ -68,10 +96,22 @@ function BriefingReport({ briefing }) {
 
       {/* 简报内容 */}
       <div style={{ background: '#fff', borderRadius: '0 0 12px 12px', padding: '16px 20px' }}>
+        <Paragraph style={{
+          marginBottom: 10,
+          padding: '10px 12px',
+          background: '#f8fbff',
+          border: '1px solid #e6f4ff',
+          borderRadius: 8,
+          fontSize: 12,
+          lineHeight: 1.75,
+        }}>
+          <Text strong>今日线索概述：</Text>
+          本日共纳入 {totalCount} 条线索，平均评分 {avgScore} 分，其中高优先级（≥85分）{highCount} 条；线索类型以 {topTypes || '暂无'} 为主，区域分布集中在 {topRegions || '暂无'}。{actionAdvice}
+        </Paragraph>
         <Text strong style={{ fontSize: 13, color: '#444' }}>📋 今日高优先级线索（AI评分 ≥ 70分）</Text>
         <Divider style={{ margin: '10px 0' }} />
 
-        {briefing.highlights.map((h, i) => (
+        {highlights.map((h, i) => (
           <div
             key={h.id}
             style={{
@@ -153,6 +193,13 @@ export default function DailyBriefing() {
 
   const currentBriefing = briefings.find(b => b.date === selectedDate)
 
+  const sortHighlights = (briefing) => {
+    if (!briefing) return briefing
+    const sorted = [...(briefing.highlights || [])]
+    sorted.sort((a, b) => b.score - a.score)
+    return { ...briefing, highlights: sorted }
+  }
+
   const filteredBriefings = briefings.filter(b => {
     if (!searchKw) return true
     return b.date.includes(searchKw) ||
@@ -177,7 +224,7 @@ export default function DailyBriefing() {
               bodyStyle={{ padding: 0 }}
               title={null}
             >
-              <BriefingReport briefing={briefings[0]} />
+              <BriefingReport briefing={sortHighlights(briefings[0])} />
             </Card>
           </Col>
           <Col xs={24} lg={8}>
@@ -232,7 +279,7 @@ export default function DailyBriefing() {
                 </Col>
               </Row>
               <div style={{ marginBottom: 6 }}>
-                <Text type="secondary" style={{ fontSize: 11 }}>近7日转化漏斗</Text>
+                <Text type="secondary" style={{ fontSize: 11 }}>{`近${briefings.length}日转化漏斗`}</Text>
               </div>
               {[
                 { label: '推送线索', value: briefings.reduce((s, b) => s + b.conversionStats.pushed, 0), max: null, color: '#1677ff' },
@@ -305,7 +352,7 @@ export default function DailyBriefing() {
           <Col xs={24} md={16}>
             {currentBriefing ? (
               <Card style={{ borderRadius: 10 }} bodyStyle={{ padding: 0 }}>
-                <BriefingReport briefing={currentBriefing} />
+                <BriefingReport briefing={sortHighlights(currentBriefing)} />
               </Card>
             ) : (
               <Card style={{ borderRadius: 10, textAlign: 'center' }}>
@@ -326,7 +373,7 @@ export default function DailyBriefing() {
         <Row gutter={16}>
           <Col xs={24} lg={16}>
             <Card
-              title="📈 近7日情报推送与转化趋势"
+              title={`📈 近${briefings.length}日情报推送与转化趋势`}
               style={{ borderRadius: 10 }}
             >
               <ConversionChart briefings={briefings} />
@@ -347,7 +394,7 @@ export default function DailyBriefing() {
           <Col xs={24} lg={8}>
             <Card title="📊 效能汇总" style={{ borderRadius: 10 }}>
               {[
-                { title: '7日累计推送', value: briefings.reduce((s, b) => s + b.conversionStats.pushed, 0), suffix: '条', color: '#1677ff' },
+                { title: `近${briefings.length}日累计推送`, value: briefings.reduce((s, b) => s + b.conversionStats.pushed, 0), suffix: '条', color: '#1677ff' },
                 { title: '销售认领率', value: `${Math.round(briefings.reduce((s, b) => s + b.conversionStats.claimed / b.conversionStats.pushed, 0) / briefings.length * 100)}%`, suffix: '', color: '#52c41a' },
                 { title: '线索转化率', value: `${totalConvRate}%`, suffix: '', color: '#fa8c16' },
                 { title: '待挖掘潜值', value: briefings.reduce((s, b) => s + (b.conversionStats.pushed - b.conversionStats.converted), 0), suffix: '条', color: '#722ed1' },

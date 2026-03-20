@@ -41,7 +41,7 @@ const SCORE_OPTIONS = [
 const scoreColor = s => s >= 80 ? '#52c41a' : s >= 60 ? '#fa8c16' : '#f5222d'
 const scoreBg = s => s >= 80 ? '#f6ffed' : s >= 60 ? '#fff7e6' : '#fff2f0'
 
-const SCORE_DIMENSIONS = ['业务匹配度', '时效紧迫性', '预算确定性', '竞争可赢性']
+const SCORE_DIMENSIONS = ['采购意向强度', '客户匹配度', '时效性', '预算信号']
 
 const buildScoreBreakdown = (lead) => {
   // 如果后端/Mock 已提供结构化评分，优先使用

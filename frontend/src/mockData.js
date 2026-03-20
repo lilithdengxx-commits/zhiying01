@@ -326,6 +326,66 @@ export const competitors = [
     ecosystemPartners: ['IBM', '甲骨文'],
     coverageRegions: ['山东', '江苏', '陕西', '北京'],
   },
+  {
+    id: 'C004', name: '神州信息', shortName: '神州信息',
+    type: '行业解决方案型',
+    strength: ['金融与政务双行业经验', '交付规范化程度高', '大型项目管理能力强'],
+    weakness: ['创新速度偏慢', '区域客情深度不均', '方案同质化明显'],
+    recentWins: [
+      { project: '上海市某区数据共享交换平台', amount: 1600, date: '2026-02', region: '上海' },
+      { project: '天津市政务服务中台升级', amount: 1300, date: '2025-12', region: '天津' },
+    ],
+    ecosystemPartners: ['腾讯云', '华为云', '金蝶'],
+    coverageRegions: ['上海', '天津', '北京', '河北'],
+  },
+  {
+    id: 'C005', name: '东软集团（政务事业部）', shortName: '东软',
+    type: '行业深耕型',
+    strength: ['医疗政务场景经验丰富', '本地化实施团队稳定', '集成能力均衡'],
+    weakness: ['品牌势能中等', '大模型能力建设较晚', '超大型项目案例偏少'],
+    recentWins: [
+      { project: '沈阳市政务服务能力提升项目', amount: 980, date: '2026-01', region: '辽宁' },
+      { project: '长春市公共数据治理平台', amount: 1250, date: '2025-11', region: '吉林' },
+    ],
+    ecosystemPartners: ['华三', '阿里云', '腾讯云'],
+    coverageRegions: ['辽宁', '吉林', '黑龙江', '山东'],
+  },
+  {
+    id: 'C006', name: '南威软件股份有限公司', shortName: '南威软件',
+    type: '政务应用产品型',
+    strength: ['电子政务产品线完整', '福建区域关系深', '政务服务场景积累厚'],
+    weakness: ['跨区域扩张速度有限', '高端咨询能力偏弱', '生态号召力一般'],
+    recentWins: [
+      { project: '福州市一网通办能力提升', amount: 880, date: '2026-03', region: '福建' },
+      { project: '泉州市数字政府门户改造', amount: 760, date: '2025-12', region: '福建' },
+    ],
+    ecosystemPartners: ['华为云', '麒麟软件', '统信软件'],
+    coverageRegions: ['福建', '浙江', '江西'],
+  },
+  {
+    id: 'C007', name: '太极股份', shortName: '太极',
+    type: '央企背景集成型',
+    strength: ['央国企项目资源强', '安全合规优势明显', '部委级项目经验丰富'],
+    weakness: ['商务流程偏重', '交付响应速度一般', '成本控制压力大'],
+    recentWins: [
+      { project: '某部委数据治理专项', amount: 4200, date: '2026-02', region: '北京' },
+      { project: '西安市政务云安全加固项目', amount: 1500, date: '2025-10', region: '陕西' },
+    ],
+    ecosystemPartners: ['中国电子', '中电科', '麒麟软件'],
+    coverageRegions: ['北京', '陕西', '湖北', '广东'],
+  },
+  {
+    id: 'C008', name: '软通动力（政企数字化）', shortName: '软通动力',
+    type: '生态协同型',
+    strength: ['生态合作广', '交付团队规模大', '成本弹性较好'],
+    weakness: ['自研产品差异化不足', '高层客情沉淀较弱', '复杂项目利润率低'],
+    recentWins: [
+      { project: '深圳市某区政务数据底座扩容', amount: 1180, date: '2026-01', region: '广东' },
+      { project: '成都市政务AI应用试点', amount: 920, date: '2025-11', region: '四川' },
+    ],
+    ecosystemPartners: ['华为云', '腾讯云', '中软国际'],
+    coverageRegions: ['广东', '四川', '重庆', '江苏'],
+  },
 ]
 
 export const customers = [

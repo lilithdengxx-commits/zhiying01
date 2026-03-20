@@ -58,7 +58,7 @@ function AppInner() {
           {!collapsed && (
             <div style={{ marginLeft: 10 }}>
               <div style={{ color: '#fff', fontWeight: 700, fontSize: 18, lineHeight: 1.2 }}>智鹰</div>
-              <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>ToG商机挖掘系统</div>
+              <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>政企商机线索发现系统</div>
             </div>
           )}
         </div>

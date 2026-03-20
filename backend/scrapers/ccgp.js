@@ -1,27 +1,21 @@
 'use strict'
-/**
- * 中国政府采购网 (www.ccgp.gov.cn) 实时爬虫
- * 搜索接口: http://search.ccgp.gov.cn/bxsearch
- * 编码: GBK（自动检测并转换）
- */
 const axios = require('axios')
 const cheerio = require('cheerio')
-const iconv = require('iconv-lite')
 
-// ── 搜索关键词（与我司产品高度相关）──────────────────────────
-const SEARCH_KEYWORDS = [
-  '大数据平台',
-  '数据治理',
-  '数字政府',
-  '政务数据',
-  'AI大模型',
+const SOURCE_PAGES = [
+  { url: 'http://www.ccgp.gov.cn/cggg/dfgg/', name: '地方采购公告' },
+  { url: 'http://www.ccgp.gov.cn/cggg/zygg/', name: '中央采购公告' },
 ]
 
-// ── 评分维度关键词 ────────────────────────────────────────────
-const HIGH_VALUE_KW = ['大数据', '数据治理', '数据中台', 'AI大模型', '政务AI', '数字政府', '数据要素', '数据湖', '数据共享']
-const MED_VALUE_KW  = ['智慧城市', '数字化', '政务服务', '云平台', '信息化改造', '平台建设', '一网通办']
+const FILTER_KEYWORDS = [
+  '大数据', '数据治理', '数字政府', '政务数据', 'AI大模型', '数据中台',
+  '数据平台', '数据湖', '数据共享', '数据开放', '数字化转型', '智慧城市',
+  '政务云', '信息化平台', '数字经济', '数据要素', '一体化平台',
+]
 
-// ── 省市映射表 ────────────────────────────────────────────────
+const HIGH_VALUE_KW = ['大数据', '数据治理', '数据中台', 'AI大模型', '政务AI', '数字政府', '数据要素', '数据湖', '数据共享']
+const MED_VALUE_KW  = ['智慧城市', '数字化', '政务服务', '政务云', '信息化平台', '一体化平台', '数字经济']
+
 const REGION_MAP = {
   '北京': { region: '北京市',  city: '北京市'  },
   '天津': { region: '天津市',  city: '天津市'  },
@@ -53,7 +47,7 @@ const REGION_MAP = {
   '云南': { region: '云南省',  city: '昆明市'  },
   '江西': { region: '江西省',  city: '南昌市'  },
   '广西': { region: '广西壮族自治区', city: '南宁市' },
-  '内蒙古': { region: '内蒙古',  city: '呼和浩特市' },
+  '内蒙古': { region: '内蒙古', city: '呼和浩特市' },
   '海南': { region: '海南省',  city: '海口市'  },
   '河北': { region: '河北省',  city: '石家庄市' },
   '山西': { region: '山西省',  city: '太原市'  },
@@ -66,15 +60,10 @@ const REGION_MAP = {
   '西藏': { region: '西藏',    city: '拉萨市'  },
 }
 
-// ── 提取省市 ──────────────────────────────────────────────────
-function extractRegionCity(text) {
-  for (const [key, val] of Object.entries(REGION_MAP)) {
-    if (text.includes(key)) return val
-  }
-  return { region: '全国', city: '未知' }
+function extractRegion(shortName) {
+  return REGION_MAP[shortName] || { region: shortName || '全国', city: shortName || '未知' }
 }
 
-// ── 提取预算金额（万元） ───────────────────────────────────────
 function extractBudget(text) {
   const yi = text.match(/(\d+(?:\.\d+)?)\s*亿[元人民币]?/)
   if (yi) return Math.round(parseFloat(yi[1]) * 10000)
@@ -83,24 +72,20 @@ function extractBudget(text) {
   return null
 }
 
-// ── 公告类型 → bid status ─────────────────────────────────────
-function mapStatus(announceType) {
-  if (!announceType) return 'bidding'
-  if (announceType.includes('成交') || announceType.includes('中标') || announceType.includes('结果')) return 'awarded'
-  if (announceType.includes('废标') || announceType.includes('终止') || announceType.includes('异常')) return 'failed'
-  if (announceType.includes('意向')) return 'intention'
+function mapStatus(typeText) {
+  if (!typeText) return 'bidding'
+  if (typeText.includes('中标') || typeText.includes('成交') || typeText.includes('结果')) return 'awarded'
+  if (typeText.includes('废标') || typeText.includes('终止') || typeText.includes('异常')) return 'failed'
+  if (typeText.includes('意向') || typeText.includes('公示')) return 'intention'
   return 'bidding'
 }
 
-// ── AI 评分 ───────────────────────────────────────────────────
 function calculateScore(title, dept) {
   let score = 50
   const text = title + dept
-  for (const kw of HIGH_VALUE_KW) { if (text.includes(kw)) score += 7 }
-  for (const kw of MED_VALUE_KW)  { if (text.includes(kw)) score += 3 }
-  // 省级机构加分
+  HIGH_VALUE_KW.forEach(kw => { if (text.includes(kw)) score += 7 })
+  MED_VALUE_KW.forEach(kw  => { if (text.includes(kw)) score += 3 })
   if (dept.includes('省') && (dept.includes('厅') || dept.includes('局'))) score += 5
-  // 预算加分
   const budget = extractBudget(title)
   if (budget) {
     if (budget >= 5000) score += 10
@@ -110,145 +95,83 @@ function calculateScore(title, dept) {
   return Math.min(Math.max(score, 45), 95)
 }
 
-// ── 根据评分生成操作建议 ──────────────────────────────────────
-function genNextAction(title, score, dept) {
-  if (score >= 80) return `高优先级：立即安排商务团队联系 ${dept}，确认采购需求和预算情况`
-  if (score >= 65) return `中优先级：本周内跟进 ${dept}，了解项目立项进展`
-  return `持续观察：${dept} 项目已录入线索池，待预算确认后跟进`
-}
-
-// ── 生成去重 ID ───────────────────────────────────────────────
 function makeId(title) {
-  let hash = 0
-  for (let i = 0; i < title.length; i++) {
-    hash = ((hash << 5) - hash) + title.charCodeAt(i)
-    hash |= 0
-  }
-  return `CCGP-${Math.abs(hash).toString(36).toUpperCase()}`
+  let h = 0
+  for (let i = 0; i < title.length; i++) { h = ((h << 5) - h) + title.charCodeAt(i); h |= 0 }
+  return 'CCGP-' + Math.abs(h).toString(36).toUpperCase()
 }
 
-// ── 发起 HTTP 请求（自动处理 GBK/UTF-8 编码）────────────────
-async function fetchPage(keyword, pageIndex = 1) {
-  const response = await axios.get('http://search.ccgp.gov.cn/bxsearch', {
-    params: {
-      searchtype: 1,
-      page_index: pageIndex,
-      bidSort: 0,
-      buyerName: '',
-      projectId: '',
-      pinMu: 0,
-      bidType: 0,
-      dbselect: 'bidx',
-      kw: keyword,
-      timeType: 6,  // 近6个月
-      displayZone: '',
-      zoneId: '',
-      pppStatus: 0,
-      agentName: '',
-    },
+function matchesOurBusiness(title, dept) {
+  const text = title + dept
+  return FILTER_KEYWORDS.some(kw => text.includes(kw))
+}
+
+async function fetchListPage(pageUrl) {
+  const response = await axios.get(pageUrl, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'zh-CN,zh;q=0.9',
       'Referer': 'http://www.ccgp.gov.cn/',
-      'Connection': 'keep-alive',
     },
-    responseType: 'arraybuffer',
     timeout: 15000,
   })
-
-  // 自动检测编码
-  const contentType = (response.headers['content-type'] || '').toLowerCase()
-  const encoding = contentType.includes('utf-8') ? 'utf-8' : 'gbk'
-  return iconv.decode(Buffer.from(response.data), encoding)
+  return response.data
 }
 
-// ── 解析搜索结果 HTML ─────────────────────────────────────────
-function parseHTML(html, keyword) {
-  const $ = cheerio.load(html, { decodeEntities: false })
-  const items = []
-
-  // ccgp 搜索结果列表选择器（兼容多种版本的页面结构）
-  const rows = $('ul.vT-srch-result-list-bid li, .vT-srch-result-list li, .search-result-list li, table.pList tr')
-
-  rows.each((_, el) => {
-    const $el = $(el)
-    const anchor = $el.find('a').first()
-    const title = anchor.text().trim().replace(/\s+/g, ' ')
-    const href  = anchor.attr('href') || ''
-
-    if (!title || title.length < 5) return
-
-    const infoText = $el.find('p, span, td').text().replace(/\s+/g, ' ')
-
-    // 解析采购单位
-    const deptMatch = infoText.match(/采购[人单位]{0,2}[：:\s]([^|｜\n]{2,30})/)
-    const dept = (deptMatch ? deptMatch[1].trim() : '').replace(/代理.*$/, '').trim() || '未知单位'
-
-    // 解析发布日期
-    const dateMatch = infoText.match(/(\d{4}-\d{2}-\d{2})/)
-    const publishedAt = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0]
-
-    // 解析公告类型
-    const typeMatch = infoText.match(/公告类型[：:\s]([^|｜\n]{2,20})/)
-    const announceType = typeMatch ? typeMatch[1].trim() : '采购公告'
-
-    const { region, city } = extractRegionCity(dept + title + infoText)
-    const budget = extractBudget(title)
-    const score  = calculateScore(title, dept)
-    const id     = makeId(title)
-
-    items.push({
-      id,
-      title,
-      href,
-      dept,
-      region,
-      city,
-      budget,
-      publishedAt,
-      announceType,
-      status: mapStatus(announceType),
-      score,
-      keyword,
-      nextAction: genNextAction(title, score, dept),
-    })
-  })
-
-  return items
-}
-
-// ── 主抓取函数 ────────────────────────────────────────────────
-async function scrapeLatest() {
+function parsePage(html) {
+  const $ = cheerio.load(html)
   const results = []
-  const seenIds = new Set()
-  const delay = ms => new Promise(r => setTimeout(r, ms))
-
-  for (let i = 0; i < SEARCH_KEYWORDS.length; i++) {
-    const kw = SEARCH_KEYWORDS[i]
-    try {
-      console.log(`[CCGP] 抓取关键词: "${kw}" ...`)
-      const html  = await fetchPage(kw)
-      const items = parseHTML(html, kw)
-
-      let newCount = 0
-      for (const item of items) {
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id)
-          results.push(item)
-          newCount++
-        }
-      }
-      console.log(`[CCGP] "${kw}" → ${newCount} 条新数据，累计 ${results.length} 条`)
-
-      // 礼貌延迟，避免触发限流
-      if (i < SEARCH_KEYWORDS.length - 1) await delay(2500)
-    } catch (err) {
-      console.error(`[CCGP] 关键词 "${kw}" 抓取失败: ${err.message}`)
-    }
-  }
-
+  $('li').each(function() {
+    const typeEl = $(this).find('em[rel="bxlx"]')
+    if (typeEl.length === 0) return
+    const anchor = $(this).find('a').first()
+    const fullTitle = (anchor.attr('title') || anchor.text()).trim()
+    const href = anchor.attr('href') || ''
+    const sourceUrl = href.startsWith('http') ? href
+      : 'http://www.ccgp.gov.cn/cggg/dfgg/' + href.replace(/^\.\//,'')
+    const typeText = typeEl.text().trim()
+    const ems = $(this).find('em:not([rel])')
+    const date = ems.eq(0).text().trim()
+    const regionShort = ems.eq(1).text().trim()
+    const dept = ems.eq(2).text().trim()
+    if (!fullTitle || fullTitle.length < 5) return
+    const { region, city } = extractRegion(regionShort)
+    const budget = extractBudget(fullTitle)
+    const score = calculateScore(fullTitle, dept)
+    const id = makeId(fullTitle)
+    const publishedAt = (date || '').substring(0, 10) || new Date().toISOString().substring(0, 10)
+    results.push({ id, fullTitle, sourceUrl, typeText, dept, region, city, budget, publishedAt, score })
+  })
   return results
 }
 
-module.exports = { scrapeLatest, SEARCH_KEYWORDS }
+async function scrapeLatest() {
+  const all = []
+  const seenIds = new Set()
+  const delay = ms => new Promise(r => setTimeout(r, ms))
+  for (let i = 0; i < SOURCE_PAGES.length; i++) {
+    const src = SOURCE_PAGES[i]
+    try {
+      console.log('[CCGP] 正在抓取:', src.name)
+      const html = await fetchListPage(src.url)
+      const items = parsePage(html)
+      let kept = 0
+      for (const item of items) {
+        if (seenIds.has(item.id)) continue
+        seenIds.add(item.id)
+        if (!matchesOurBusiness(item.fullTitle, item.dept)) continue
+        all.push(item)
+        kept++
+      }
+      console.log('[CCGP]', src.name + ': 获取', items.length, '条，命中关键词', kept, '条')
+      if (i < SOURCE_PAGES.length - 1) await delay(2000)
+    } catch (err) {
+      console.error('[CCGP]', src.name, '抓取失败:', err.message)
+    }
+  }
+  console.log('[CCGP] 本轮共抓取到', all.length, '条相关标讯')
+  return all
+}
+
+module.exports = { scrapeLatest, FILTER_KEYWORDS }

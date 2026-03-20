@@ -10,6 +10,14 @@ app.use(express.json())
 // ============================================================
 // 爬虫状态与实时数据缓存
 // ============================================================
+function mapStatus(typeText) {
+  if (!typeText) return 'bidding'
+  if (typeText.includes('中标') || typeText.includes('成交') || typeText.includes('结果')) return 'awarded'
+  if (typeText.includes('废标') || typeText.includes('终止') || typeText.includes('异常')) return 'failed'
+  if (typeText.includes('意向') || typeText.includes('公示')) return 'intention'
+  return 'bidding'
+}
+
 let crawlerStatus = {
   running: false,
   lastRun: null,
@@ -37,22 +45,24 @@ async function runCrawler() {
       .filter(item => !existingIds.has(item.id))
       .map(item => ({
         id: item.id,
-        title: item.title,
+        title: item.fullTitle,
         amount: item.budget,
         region: item.region,
         city: item.city,
-        status: item.status,
+        status: mapStatus(item.typeText),
         publishedAt: item.publishedAt,
         deadline: null,
         department: item.dept,
         source: '中国政府采购网 (ccgp.gov.cn)',
-        sourceUrl: item.href,
-        description: `通过关键词「${item.keyword}」实时抓取。公告类型：${item.announceType}`,
+        sourceUrl: item.sourceUrl,
+        description: `公告类型：${item.typeText}。通过关键词实时抓取自政府采购网。`,
         hasSubcontract: false,
         competitors: [],
-        winner: item.status === 'awarded' ? '（待确认）' : null,
+        winner: (item.typeText && (item.typeText.includes('中标') || item.typeText.includes('成交'))) ? '（待确认）' : null,
         score: item.score,
-        nextAction: item.nextAction,
+        nextAction: item.score >= 80
+          ? `高优先级：立即安排商务联系 ${item.dept}`
+          : `跟进观察：${item.dept} 项目已录入线索池`,
         isRealtime: true,
       }))
     // 将高分条目同时推进线索池
@@ -646,7 +656,7 @@ app.get('/api/crawler/status', (req, res) => {
   res.json({
     ...crawlerStatus,
     ccgpBidsCount: ccgpBids.length,
-    keywords: require('./scrapers/ccgp').SEARCH_KEYWORDS,
+    keywords: require('./scrapers/ccgp').FILTER_KEYWORDS,
     nextRun: '每30分钟自动执行一次',
   })
 })

@@ -3,6 +3,9 @@ const cors = require('cors')
 const cron = require('node-cron')
 const { scrapeLatest } = require('./scrapers/ccgp')
 const { scrapeXinhuaLatest, XINHUA_URL } = require('./scrapers/xinhua')
+const { scrapeNdrcLatest, NDRC_SOURCE } = require('./scrapers/ndrc')
+const { scrapeCctvLatest, CCTV_SOURCE } = require('./scrapers/cctv')
+const { scrapeCebpubLatest, CEBPUB_SOURCE } = require('./scrapers/cebpub')
 
 const app = express()
 app.use(cors())
@@ -30,6 +33,12 @@ let crawlerStatus = {
 let ccgpBids = []
 // 从新华网实时抓取的政策信号
 let xinhuaPolicies = []
+// 从发改委抓取的政策信号
+let ndrcPolicies = []
+// 从央视抓取的企业新闻线索
+let cctvLeads = []
+// 从中国电子招标投标平台抓取的标讯
+let cebpubBids = []
 
 async function runCrawler() {
   if (crawlerStatus.running) {
@@ -129,7 +138,7 @@ async function runCrawler() {
     // 将高分政策同时推进线索池
     const existingLeadIds2 = new Set(leads.map(l => l.id))
     for (const p of newPolicies) {
-      if (p.score >= 70 && !existingLeadIds2.has(p.id)) {
+      if (p.score >= 63 && !existingLeadIds2.has(p.id)) {
         leads.push({
           id: p.id,
           title: p.title,
@@ -163,6 +172,136 @@ async function runCrawler() {
     xinhuaPolicies.push(...newPolicies)
     crawlerStatus.totalFetched += newPolicies.length
     console.log(`[XINHUA] ── 完成，新增 ${newPolicies.length} 条政策信号，线索池已同步 ──`)
+
+    // ── 发改委政策文件 ──
+    try {
+      console.log('[NDRC] ── 开始抓取发改委政策数据 ──')
+      const ndrcItems = await scrapeNdrcLatest()
+      const existingNdrcIds = new Set([...policies.map(p => p.id), ...xinhuaPolicies.map(p => p.id), ...ndrcPolicies.map(p => p.id)])
+      const newNdrc = ndrcItems.filter(item => !existingNdrcIds.has(item.id)).map(item => ({
+        id: item.id,
+        title: item.title,
+        level: 'national',
+        levelName: '国家级',
+        region: '全国',
+        publishedAt: item.publishedAt,
+        summary: `来源国家发展改革委（${item.category}），发现与数字经济/政务信息化相关政策信号：${item.title}`,
+        relevantTasks: ['研判政策导向', '识别资金拨付信号', '匹配对应省市跟进'],
+        potentialDepts: ['各省发改委', '各地大数据局', '数字政府主管部门'],
+        budgetSignal: '发改委政策文件通常伴随专项资金安排，建议关注配套预算公告',
+        score: item.score,
+        source: NDRC_SOURCE,
+        sourceUrl: item.sourceUrl,
+        isRealtime: true,
+        signalSource: '政策文件',
+      }))
+      // 高分政策推进线索池
+      const nIds = new Set(leads.map(l => l.id))
+      for (const p of newNdrc) {
+        if (p.score >= 62 && !nIds.has(p.id)) {
+          leads.push({
+            id: p.id, title: p.title,
+            type: 'policy', typeName: '政策驱动', typeColor: 'green',
+            signalSource: '政策文件',
+            score: p.score,
+            scoreReason: '由发改委官网实时抓取，具备国家级政策驱动价值。',
+            summary: p.summary, source: NDRC_SOURCE, sourceUrl: p.sourceUrl,
+            region: '全国', city: '全国', status: 'pending',
+            createdAt: p.publishedAt, updatedAt: new Date().toISOString().split('T')[0],
+            nextAction: '建议政策研究团队24小时内完成解读，下发对应战区跟进。',
+            budget: null, department: '国家发展改革委',
+            contact: null, contactRole: null,
+            tags: ['实时抓取', '发改委', '政策文件'], deadline: null, isRealtime: true,
+          })
+          nIds.add(p.id)
+        }
+      }
+      ndrcPolicies.push(...newNdrc)
+      crawlerStatus.totalFetched += newNdrc.length
+      console.log(`[NDRC] ── 完成，新增 ${newNdrc.length} 条政策信号 ──`)
+    } catch (err) {
+      console.warn('[NDRC] 抓取失败:', err.message)
+    }
+
+    // ── 央视企业新闻 ──
+    try {
+      console.log('[CCTV] ── 开始抓取央视动态数据 ──')
+      const cctvItems = await scrapeCctvLatest()
+      const existingCctvIds = new Set(cctvLeads.map(l => l.id))
+      const newCctv = cctvItems.filter(item => !existingCctvIds.has(item.id))
+      // 高分条目推进线索池
+      const cIds = new Set(leads.map(l => l.id))
+      for (const item of newCctv) {
+        if (item.score >= 61 && !cIds.has(item.id)) {
+          leads.push({
+            id: item.id, title: item.title,
+            type: 'policy', typeName: '政策驱动', typeColor: 'green',
+            signalSource: '企业新闻',
+            score: item.score,
+            scoreReason: '由央视新闻实时抓取，具备政策/企业动态参考价值。',
+            summary: `来源央视（${item.category}）：${item.title}`,
+            source: CCTV_SOURCE, sourceUrl: item.sourceUrl,
+            region: '全国', city: '全国', status: 'pending',
+            createdAt: item.publishedAt, updatedAt: new Date().toISOString().split('T')[0],
+            nextAction: '关注领导层政策动向，结合业务战区分析可能的数字政府建设需求。',
+            budget: null, department: '央视/政策相关部门',
+            contact: null, contactRole: null,
+            tags: ['实时抓取', '央视', '企业新闻'], deadline: null, isRealtime: true,
+          })
+          cIds.add(item.id)
+        }
+      }
+      cctvLeads.push(...newCctv)
+      crawlerStatus.totalFetched += newCctv.length
+      console.log(`[CCTV] ── 完成，新增 ${newCctv.length} 条企业新闻信号 ──`)
+    } catch (err) {
+      console.warn('[CCTV] 抓取失败:', err.message)
+    }
+
+    // ── 中国电子招标投标平台 ──
+    try {
+      console.log('[CEBPUB] ── 开始抓取中国电子招标投标平台数据 ──')
+      const cebItems = await scrapeCebpubLatest()
+      const existingCebIds = new Set([...bids.map(b => b.id), ...ccgpBids.map(b => b.id), ...cebpubBids.map(b => b.id)])
+      const newCeb = cebItems.filter(item => !existingCebIds.has(item.id)).map(item => ({
+        id: item.id, title: item.title,
+        amount: item.budget, region: item.region, city: item.city,
+        statusKey: item.statusKey, statusName: '实时公告',
+        publishedAt: item.publishedAt, deadline: null,
+        department: item.title.slice(0, 20) + '...',
+        source: CEBPUB_SOURCE, sourceUrl: item.sourceUrl,
+        description: `来源中国电子招标投标公共服务平台（${item.category}）：${item.title}`,
+        hasSubcontract: false, competitors: [], winner: null,
+        score: item.score, isRealtime: true,
+        signalSource: '招投标公告',
+      }))
+      // 高分条目推进线索池
+      const cbIds = new Set(leads.map(l => l.id))
+      for (const bid of newCeb) {
+        if (bid.score >= 65 && !cbIds.has(bid.id)) {
+          leads.push({
+            id: bid.id, title: bid.title,
+            type: 'bidding', typeName: '招采动作', typeColor: 'blue',
+            signalSource: '招投标公告',
+            score: bid.score,
+            scoreReason: `由中国电子招标投标公共服务平台实时抓取，关键词匹配度高。`,
+            summary: bid.description, source: CEBPUB_SOURCE, sourceUrl: bid.sourceUrl,
+            region: bid.region, city: bid.city, status: 'pending',
+            createdAt: bid.publishedAt, updatedAt: new Date().toISOString().split('T')[0],
+            nextAction: `立即跟进：${bid.title.slice(0, 25)}...`,
+            budget: bid.amount, department: bid.department,
+            contact: null, contactRole: null,
+            tags: ['实时抓取', '电子招标', bid.region], deadline: null, isRealtime: true,
+          })
+          cbIds.add(bid.id)
+        }
+      }
+      cebpubBids.push(...newCeb)
+      crawlerStatus.totalFetched += newCeb.length
+      console.log(`[CEBPUB] ── 完成，新增 ${newCeb.length} 条招标公告 ──`)
+    } catch (err) {
+      console.warn('[CEBPUB] 抓取失败:', err.message)
+    }
 
     crawlerStatus.lastSuccess = new Date().toISOString()
     console.log(`[CCGP] ── 完成，新增 ${newBids.length} 条标讯，线索池已同步 ──`)
@@ -749,8 +888,17 @@ app.get('/api/crawler/status', (req, res) => {
     ...crawlerStatus,
     ccgpBidsCount: ccgpBids.length,
     xinhuaPoliciesCount: xinhuaPolicies.length,
+    ndrcPoliciesCount: ndrcPolicies.length,
+    cctvLeadsCount: cctvLeads.length,
+    cebpubBidsCount: cebpubBids.length,
+    sources: [
+      { name: '中国政府采购网', url: 'http://www.ccgp.gov.cn/', signalSource: '招投标公告', count: ccgpBids.length },
+      { name: '新华网信息公开', url: XINHUA_URL, signalSource: '政策文件', count: xinhuaPolicies.length },
+      { name: NDRC_SOURCE, url: 'https://www.ndrc.gov.cn/', signalSource: '政策文件', count: ndrcPolicies.length },
+      { name: CCTV_SOURCE, url: 'https://www.cctv.com/gyys/ldhd/index.shtml', signalSource: '企业新闻', count: cctvLeads.length },
+      { name: CEBPUB_SOURCE, url: 'https://bulletin.cebpubservice.com/', signalSource: '招投标公告', count: cebpubBids.length },
+    ],
     keywords: require('./scrapers/ccgp').FILTER_KEYWORDS,
-    xinhuaSource: XINHUA_URL,
     nextRun: '每30分钟自动执行一次',
   })
 })

@@ -168,6 +168,14 @@ function LeadDetailDrawer({ lead, onClose, onStatusChange }) {
             <Text style={{ fontSize: 13 }}>{r.value}</Text>
           </div>
         ))}
+        {lead.sourceUrl && (
+          <div style={{ display: 'flex', gap: 12, padding: '4px 0' }}>
+            <Text type="secondary" style={{ width: 80, flexShrink: 0, fontSize: 12 }}>原文链接</Text>
+            <a href={lead.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13 }}>
+              查看原文 <ExportOutlined style={{ fontSize: 11 }} />
+            </a>
+          </div>
+        )}
       </div>
 
       {/* 标签 */}
@@ -233,9 +241,14 @@ export default function LeadPool() {
       title: '线索标题', dataIndex: 'title', key: 'title',
       render: (text, row) => (
         <div>
-          <Text strong style={{ fontSize: 13, cursor: 'pointer', color: '#1677ff' }} onClick={() => setSelectedLead(row)}>
-            {text}
-          </Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Text strong style={{ fontSize: 13, cursor: 'pointer', color: '#1677ff' }} onClick={() => setSelectedLead(row)}>
+              {text}
+            </Text>
+            {row.isRealtime && (
+              <Tag color="red" style={{ fontSize: 10, padding: '0 4px', lineHeight: '16px', borderRadius: 3, flexShrink: 0 }}>实时</Tag>
+            )}
+          </div>
           <div style={{ marginTop: 4 }}>
             <Tag color={row.typeColor} style={{ fontSize: 11 }}>{row.typeName}</Tag>
             <Text type="secondary" style={{ fontSize: 11 }}>· {row.city}</Text>
@@ -251,6 +264,16 @@ export default function LeadPool() {
     {
       title: '信号源', key: 'signalSource', width: 110,
       render: (_, row) => <Text style={{ fontSize: 12 }}>{inferSignalSource(row)}</Text>,
+    },
+    {
+      title: '来源', key: 'source', width: 140,
+      render: (_, row) => (
+        <Tooltip title={row.source}>
+          <Text style={{ fontSize: 12 }} ellipsis={{ rows: 1 }}>
+            {row.source || '—'}
+          </Text>
+        </Tooltip>
+      ),
     },
     {
       title: '标签', dataIndex: 'tags', key: 'tags', width: 200,

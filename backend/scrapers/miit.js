@@ -1,28 +1,34 @@
 'use strict'
 /**
- * 发改委数据源爬虫
- * 目标：https://www.ndrc.gov.cn/
+ * 工业和信息化部（MIIT）爬虫
+ * 目标：https://www.miit.gov.cn/
  * 信号源分类：政策文件
+ * 工信部是 AI/大数据/数字经济/ICT 政策的核心发布方，与中科闻歌三大领域高度相关
  */
 
 const axios = require('axios')
 const cheerio = require('cheerio')
 
-const NDRC_URLS = [
-  { url: 'https://www.ndrc.gov.cn/xxgk/zcfb/', name: '政策发布' },
-  { url: 'https://www.ndrc.gov.cn/xwdt/tzgg/', name: '通知公告' },
+const MIIT_URLS = [
+  { url: 'https://www.miit.gov.cn/', name: '工信部首页' },
+  { url: 'https://www.miit.gov.cn/zwgk/zcjd/', name: '政策解读' },
+  { url: 'https://www.miit.gov.cn/cmsdNN/gzcy/tzgg/', name: '通知公告' },
+  { url: 'https://www.miit.gov.cn/n973401/', name: '新闻资讯' },
 ]
 
 const KEYWORDS_HIGH = [
-  // 中科闻歌核心业务相关政策
   '人工智能', '大模型', '数字经济', '数据要素', '数字政府', '数字化转型',
-  '公共安全', '社会治理', '融媒体', '媒体融合', '金融科技', '数字金融',
-  '数字中国', '新型基础设施', '数据安全', '算力', '数据治理', '认知计算',
+  '工业互联网', '工业大数据', '公共安全', '社会治理', '融媒体', '媒体融合',
+  '金融科技', '数字金融', '数字中国', '新型基础设施', '数据安全', '算力',
+  '数据治理', '认知计算', '大数据', '智能制造', '软件产业', '信创',
 ]
 
 const KEYWORDS_MED = [
   '信息化', '数字化', '平台建设', '政务服务', '公共服务', '创新发展',
   '产业数字化', '专项资金', '试点', '示范区', '智慧城市', '知识图谱',
+  '信息技术', '电子信息', '集成电路', '互联网', '5G', '物联网',
+  // 通用政府文件关键词（提高命中率）
+  '通知', '意见', '方案', '规划', '政策', '指导', '实施', '推进', '工作', '建设',
 ]
 
 function buildId(title) {
@@ -31,7 +37,7 @@ function buildId(title) {
     hash = ((hash << 5) - hash) + title.charCodeAt(i)
     hash |= 0
   }
-  return `NDRC-${Math.abs(hash).toString(36).toUpperCase()}`
+  return `MIIT-${Math.abs(hash).toString(36).toUpperCase()}`
 }
 
 function calcScore(title) {
@@ -56,11 +62,11 @@ function normalizeHref(href, base) {
   try { return new URL(href, base).toString() } catch { return '' }
 }
 
-async function scrapeNdrcLatest() {
+async function scrapeMiitLatest() {
   const allItems = []
   const seen = new Set()
 
-  for (const page of NDRC_URLS) {
+  for (const page of MIIT_URLS) {
     try {
       const resp = await axios.get(page.url, {
         timeout: 15000,
@@ -68,7 +74,7 @@ async function scrapeNdrcLatest() {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'zh-CN,zh;q=0.9',
-          'Referer': 'https://www.ndrc.gov.cn/',
+          'Referer': 'https://www.miit.gov.cn/',
         },
       })
 
@@ -79,13 +85,15 @@ async function scrapeNdrcLatest() {
         const href = normalizeHref($(el).attr('href') || '', page.url)
         const parentText = $(el).parent().text().replace(/\s+/g, ' ').trim()
 
-        if (!title || title.length < 8 || title.length > 100) return
-        if (!href || href.includes('javascript:')) return
-        if (seen.has(title)) return
-        // 过滤导航类链接
-        if (['首页', '返回', '更多', '下一页', '上一页', '站点地图'].includes(title)) return
+        if (!title || title.length < 8 || title.length > 200) return
+        if (['首页', '返回', '更多', '下一页', '上一页', '登录', '注册'].includes(title)) return
 
+        const combined = title + parentText
+        const isRelevant = [...KEYWORDS_HIGH, ...KEYWORDS_MED].some(kw => combined.includes(kw))
+        if (!isRelevant) return
+        if (seen.has(title)) return
         seen.add(title)
+
         allItems.push({
           id: buildId(title),
           title,
@@ -96,20 +104,13 @@ async function scrapeNdrcLatest() {
         })
       })
     } catch (err) {
-      console.warn(`[NDRC] 抓取 ${page.url} 失败: ${err.message}`)
+      console.warn(`[MIIT] 抓取 ${page.url} 失败: ${err.message}`)
     }
   }
 
-  // 过滤相关条目
-  const related = allItems.filter(item =>
-    [...KEYWORDS_HIGH, ...KEYWORDS_MED].some(k => item.title.includes(k))
-  )
-
-  const result = (related.length ? related : allItems)
-    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
-    .slice(0, 30)
-
-  return result
+  console.log(`[MIIT] 共抓取 ${allItems.length} 条政策文件（工信部）`)
+  return allItems
 }
 
-module.exports = { scrapeNdrcLatest, NDRC_SOURCE: '国家发展改革委官网' }
+const MIIT_SOURCE = '工业和信息化部 (miit.gov.cn)'
+module.exports = { scrapeMiitLatest, MIIT_SOURCE }

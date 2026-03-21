@@ -4,17 +4,39 @@ const cheerio = require('cheerio')
 
 const SOURCE_PAGES = [
   { url: 'http://www.ccgp.gov.cn/cggg/dfgg/', name: '地方采购公告' },
+  { url: 'http://www.ccgp.gov.cn/cggg/dfgg/?page=2', name: '地方采购公告p2' },
+  { url: 'http://www.ccgp.gov.cn/cggg/dfgg/?page=3', name: '地方采购公告p3' },
   { url: 'http://www.ccgp.gov.cn/cggg/zygg/', name: '中央采购公告' },
+  { url: 'http://www.ccgp.gov.cn/cggg/zygg/?page=2', name: '中央采购公告p2' },
 ]
 
 const FILTER_KEYWORDS = [
-  '大数据', '数据治理', '数字政府', '政务数据', 'AI大模型', '数据中台',
-  '数据平台', '数据湖', '数据共享', '数据开放', '数字化转型', '智慧城市',
-  '政务云', '信息化平台', '数字经济', '数据要素', '一体化平台',
+  // 治理领域 — 中科闻歌核心方向
+  '大数据', '数据治理', '数字政府', '政务数据', '公共安全', '社会治理', '舆情',
+  'AI大模型', '大模型', '人工智能', '认知计算', '决策支持', '智能分析',
+  '数据中台', '数据平台', '知识图谱', '自然语言处理', '多模态',
+  // 媒体领域
+  '媒体', '融媒体', '传媒', '广播电视', '新闻', '内容管理', '舆情监控',
+  '媒体大数据', '智能编辑', '内容分发',
+  // 金融领域
+  '金融科技', '智能风控', '反欺诈', '金融大数据', '信贷', '银行', '保险科技',
+  // 通用 IT/信息化 — 放宽门槛，由評分机制筛选高质量线索
+  '数字化转型', '智慧城市', '信息化平台', '数字经济', '数据要素',
+  '信息化', '数字化', '云计算', '软件服务', '网络安全', '电子政务',
+  '系统建设', '平台建设', '信息系统', '数据库', '云平台', '政务云',
+  '智能化', '数字孪生', '视频', '监控', '安防', '物联网', '5G',
+  '算法', '模型', '训练', '推理', '应用开发', '运维服务',
 ]
 
-const HIGH_VALUE_KW = ['大数据', '数据治理', '数据中台', 'AI大模型', '政务AI', '数字政府', '数据要素', '数据湖', '数据共享']
-const MED_VALUE_KW  = ['智慧城市', '数字化', '政务服务', '政务云', '信息化平台', '一体化平台', '数字经济']
+const HIGH_VALUE_KW = [
+  'AI大模型', '大模型', '人工智能', '数据治理', '认知计算', '决策支持',
+  '公共安全', '舆情', '融媒体', '媒体大数据', '智能风控', '知识图谱',
+  '数字政府', '数据中台', '政务AI', '多模态',
+]
+const MED_VALUE_KW  = [
+  '大数据', '数字化转型', '智慧城市', '数据要素', '信息化平台',
+  '媒体', '传媒', '金融科技', '数字经济', '自然语言处理', '数据平台',
+]
 
 const REGION_MAP = {
   '北京': { region: '北京市',  city: '北京市'  },
@@ -81,18 +103,19 @@ function mapStatus(typeText) {
 }
 
 function calculateScore(title, dept) {
-  let score = 50
+  let score = 55  // 基础分提升
   const text = title + dept
-  HIGH_VALUE_KW.forEach(kw => { if (text.includes(kw)) score += 7 })
-  MED_VALUE_KW.forEach(kw  => { if (text.includes(kw)) score += 3 })
+  HIGH_VALUE_KW.forEach(kw => { if (text.includes(kw)) score += 8 })
+  MED_VALUE_KW.forEach(kw  => { if (text.includes(kw)) score += 4 })
   if (dept.includes('省') && (dept.includes('厅') || dept.includes('局'))) score += 5
   const budget = extractBudget(title)
   if (budget) {
     if (budget >= 5000) score += 10
     else if (budget >= 1000) score += 7
     else if (budget >= 300) score += 4
+    else if (budget >= 50) score += 2
   }
-  return Math.min(Math.max(score, 45), 95)
+  return Math.min(Math.max(score, 50), 95)
 }
 
 function makeId(title) {

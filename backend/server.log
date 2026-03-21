@@ -1,0 +1,45 @@
+﻿[dotenv@17.3.1] injecting env (0) from .env -- tip: 鈿欙笍  write to custom object with { processEnv: myObject }
+[AI璇勫垎] 鏈厤缃?LLM_API_KEY锛屼娇鐢ㄥ叧閿瘝瑙勫垯璇勫垎锛堝湪 backend/.env 涓厤缃彲寮€鍚級
+
+馃 鏅洪拱鍚庣API鏈嶅姟鍚姩鎴愬姛
+   鍦板潃: http://localhost:3001
+   鍋ュ悍妫€鏌? http://localhost:3001/api/health
+
+[CCGP] 鈹€鈹€ 寮€濮嬫姄鍙栦腑鍥芥斂搴滈噰璐綉鏁版嵁 鈹€鈹€
+[CCGP] 姝ｅ湪鎶撳彇: 鍦版柟閲囪喘鍏憡
+[CCGP] 鍦版柟閲囪喘鍏憡: 鑾峰彇 20 鏉★紝鍛戒腑鍏抽敭璇?2 鏉?[CCGP] 姝ｅ湪鎶撳彇: 鍦版柟閲囪喘鍏憡p2
+[CCGP] 鍦版柟閲囪喘鍏憡p2: 鑾峰彇 20 鏉★紝鍛戒腑鍏抽敭璇?0 鏉?[CCGP] 姝ｅ湪鎶撳彇: 鍦版柟閲囪喘鍏憡p3
+[CCGP] 鍦版柟閲囪喘鍏憡p3: 鑾峰彇 20 鏉★紝鍛戒腑鍏抽敭璇?0 鏉?[CCGP] 姝ｅ湪鎶撳彇: 涓ぎ閲囪喘鍏憡
+[CCGP] 涓ぎ閲囪喘鍏憡: 鑾峰彇 20 鏉★紝鍛戒腑鍏抽敭璇?1 鏉?[CCGP] 姝ｅ湪鎶撳彇: 涓ぎ閲囪喘鍏憡p2
+[CCGP] 涓ぎ閲囪喘鍏憡p2: 鑾峰彇 20 鏉★紝鍛戒腑鍏抽敭璇?0 鏉?[CCGP] 鏈疆鍏辨姄鍙栧埌 3 鏉＄浉鍏虫爣璁?[XINHUA] 鈹€鈹€ 寮€濮嬫姄鍙栨柊鍗庣綉淇℃伅鍏紑鏁版嵁 鈹€鈹€
+[XINHUA] 鈹€鈹€ 瀹屾垚锛屾柊澧?3 鏉℃斂绛栦俊鍙凤紝绾跨储姹犲凡鍚屾 鈹€鈹€
+[NDRC] 鈹€鈹€ 寮€濮嬫姄鍙栧彂鏀瑰鏀跨瓥鏁版嵁 鈹€鈹€
+[NDRC] 鈹€鈹€ 瀹屾垚锛屾柊澧?3 鏉℃斂绛栦俊鍙?鈹€鈹€
+[CCTV] 鈹€鈹€ 寮€濮嬫姄鍙栧ぎ瑙嗗姩鎬佹暟鎹?鈹€鈹€
+[CCTV] 鈹€鈹€ 瀹屾垚锛屾柊澧?30 鏉′紒涓氭柊闂讳俊鍙?鈹€鈹€
+[CEBPUB] 鈹€鈹€ 寮€濮嬫姄鍙栦腑鍥界數瀛愭嫑鏍囨姇鏍囧钩鍙版暟鎹?鈹€鈹€
+node : [CEBPUB] 鎶撳彇 https://www.cebpubservice.com/ 澶辫触: Request
+ failed with status code 502
+    + CategoryInfo          : NotSpecified: ([CEBPUB] 鎶撳彇 ht.. 
+   .status code 502:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[CEBPUB] 鎶撳彇 https://www.cebpubservice.com/cggg/ 澶辫触: Request f
+ailed with status code 502
+[CEBPUB] 鈹€鈹€ 瀹屾垚锛屾柊澧?0 鏉℃嫑鏍囧叕鍛?鈹€鈹€
+[MIIT] 鈹€鈹€ 寮€濮嬫姄鍙栧伐淇￠儴鏁版嵁 鈹€鈹€
+[MIIT] 鎶撳彇 https://www.miit.gov.cn/cmsdNN/gzcy/tzgg/ 澶辫触: Reque
+st failed with status code 404
+[MIIT] 鎶撳彇 https://www.miit.gov.cn/n973401/ 澶辫触: Request failed
+ with status code 403
+[MIIT] 鍏辨姄鍙?50 鏉℃斂绛栨枃浠讹紙宸ヤ俊閮級
+[MIIT] 鈹€鈹€ 瀹屾垚锛屾柊澧?50 鏉℃斂绛栦俊鍙?鈹€鈹€
+[CZW] 鈹€鈹€ 寮€濮嬫姄鍙栭噰鎷涚綉鏁版嵁 鈹€鈹€
+[閲囨嫑缃慮 鎶撳彇 http://www.caizhaowang.com/zbgg/ 澶辫触: Request failed
+ with status code 404
+[閲囨嫑缃慮 鎶撳彇 http://www.caizhaowang.com/cjgg/ 澶辫触: Request failed
+ with status code 404
+[閲囨嫑缃慮 鎶撳彇 http://www.caizhaowang.com/zhaobiao/ 澶辫触: Request fa
+iled with status code 404
+[CZW] 鈹€鈹€ 瀹屾垚锛屾柊澧?0 鏉℃嫑鏍囧叕鍛?鈹€鈹€
+[CCGP] 鈹€鈹€ 瀹屾垚锛屾柊澧?3 鏉℃爣璁紝绾跨储姹犲凡鍚屾 鈹€鈹€

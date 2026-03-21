@@ -6,6 +6,8 @@ const { scrapeXinhuaLatest, XINHUA_URL } = require('./scrapers/xinhua')
 const { scrapeNdrcLatest, NDRC_SOURCE } = require('./scrapers/ndrc')
 const { scrapeCctvLatest, CCTV_SOURCE } = require('./scrapers/cctv')
 const { scrapeCebpubLatest, CEBPUB_SOURCE } = require('./scrapers/cebpub')
+const { scrapeCaizhaowangLatest, CZW_SOURCE } = require('./scrapers/caizhaowang')
+const { scrapeMiitLatest, MIIT_SOURCE } = require('./scrapers/miit')
 const { enhanceLead } = require('./scorer')
 
 const app = express()
@@ -40,6 +42,10 @@ let ndrcPolicies = []
 let cctvLeads = []
 // 从中国电子招标投标平台抓取的标讯
 let cebpubBids = []
+// 从采招网抓取的标讯
+let czwBids = []
+// 从工信部抓取的政策信号
+let miitPolicies = []
 
 async function runCrawler() {
   if (crawlerStatus.running) {
@@ -81,7 +87,7 @@ async function runCrawler() {
     // 将高分条目同时推进线索池
     const existingLeadIds = new Set(leads.map(l => l.id))
     for (const bid of newBids) {
-      if (bid.score >= 70 && !existingLeadIds.has(bid.id)) {
+      if (bid.score >= 55 && !existingLeadIds.has(bid.id)) {
         const lead = await enhanceLead({
           id: bid.id,
           title: bid.title,
@@ -158,7 +164,7 @@ async function runCrawler() {
           status: 'pending',
           createdAt: p.publishedAt,
           updatedAt: new Date().toISOString().split('T')[0],
-          nextAction: '建议政策研究团队在24小时内完成解读，并分发至对应战区跟进。',
+          nextAction: '建议情报团阒24小时内完成解读，匹配DIOS平台在治理/金融/媒体三大领域的应用场景。',
           budget: null,
           department: '新华社/政策发布相关部门',
           contact: null,
@@ -211,7 +217,7 @@ async function runCrawler() {
             summary: p.summary, source: NDRC_SOURCE, sourceUrl: p.sourceUrl,
             region: '全国', city: '全国', status: 'pending',
             createdAt: p.publishedAt, updatedAt: new Date().toISOString().split('T')[0],
-            nextAction: '建议政策研究团队24小时内完成解读，下发对应战区跟进。',
+            nextAction: '建议对对DIOS平台匹配度，24小时内分发至治理/金融/媒体对应层的广廉经理跟进。',
             budget: null, department: '国家发展改革委',
             contact: null, contactRole: null,
             tags: ['实时抓取', '发改委', '政策文件'], deadline: null, isRealtime: true,
@@ -236,7 +242,7 @@ async function runCrawler() {
       // 高分条目推进线索池
       const cIds = new Set(leads.map(l => l.id))
       for (const item of newCctv) {
-        if (item.score >= 61 && !cIds.has(item.id)) {
+        if (item.score >= 55 && !cIds.has(item.id)) {
           const lead = await enhanceLead({
             id: item.id, title: item.title,
             type: 'policy', typeName: '政策驱动', typeColor: 'green',
@@ -283,7 +289,7 @@ async function runCrawler() {
       // 高分条目推进线索池
       const cbIds = new Set(leads.map(l => l.id))
       for (const bid of newCeb) {
-        if (bid.score >= 65 && !cbIds.has(bid.id)) {
+        if (bid.score >= 55 && !cbIds.has(bid.id)) {
           const lead = await enhanceLead({
             id: bid.id, title: bid.title,
             type: 'bidding', typeName: '招采动作', typeColor: 'blue',
@@ -307,6 +313,106 @@ async function runCrawler() {
       console.log(`[CEBPUB] ── 完成，新增 ${newCeb.length} 条招标公告 ──`)
     } catch (err) {
       console.warn('[CEBPUB] 抓取失败:', err.message)
+    }
+
+    // ── 工信部政策文件 ──
+    try {
+      console.log('[MIIT] ── 开始抓取工信部数据 ──')
+      const miitItems = await scrapeMiitLatest()
+      const existingMiitIds = new Set([
+        ...policies.map(p => p.id),
+        ...xinhuaPolicies.map(p => p.id),
+        ...ndrcPolicies.map(p => p.id),
+        ...miitPolicies.map(p => p.id),
+      ])
+      const newMiit = miitItems.filter(item => !existingMiitIds.has(item.id)).map(item => ({
+        id: item.id,
+        title: item.title,
+        level: 'national',
+        levelName: '国家级',
+        region: '全国',
+        publishedAt: item.publishedAt,
+        summary: `来源工业和信息化部（${item.category}），发现与ICT/数字经济相关信号：${item.title}`,
+        relevantTasks: ['研判工信部政策导向', '识别资金抚持信号', '匹配对应省市跟进'],
+        potentialDepts: ['各省工信庁', '大数据中心', '数字政府主管部门'],
+        budgetSignal: '工信部政策文件通常伴随专项资金安排，建议关注配套预算公告',
+        score: item.score,
+        source: MIIT_SOURCE,
+        sourceUrl: item.sourceUrl,
+        isRealtime: true,
+        signalSource: '政策文件',
+      }))
+      const miitLeadIds = new Set(leads.map(l => l.id))
+      for (const p of newMiit) {
+        if (p.score >= 55 && !miitLeadIds.has(p.id)) {
+          const lead = await enhanceLead({
+            id: p.id, title: p.title,
+            type: 'policy', typeName: '政策驱动', typeColor: 'green',
+            signalSource: '政策文件',
+            score: p.score,
+            scoreReason: '由工信部官网实时抓取，具备ICT领域政策驱动价値。',
+            summary: p.summary, source: MIIT_SOURCE, sourceUrl: p.sourceUrl,
+            region: '全国', city: '全国', status: 'pending',
+            createdAt: p.publishedAt, updatedAt: new Date().toISOString().split('T')[0],
+            nextAction: '建议对对DIOS平台匹配度，24小时内分发至沿治理/金融/媒体对应原经理跟进。',
+            budget: null, department: '工业和信息化部',
+            contact: null, contactRole: null,
+            tags: ['实时抓取', '工信部', '政策文件'], deadline: null, isRealtime: true,
+          })
+          leads.push(lead)
+          miitLeadIds.add(p.id)
+        }
+      }
+      miitPolicies.push(...newMiit)
+      crawlerStatus.totalFetched += newMiit.length
+      console.log(`[MIIT] ── 完成，新增 ${newMiit.length} 条政策信号 ──`)
+    } catch (err) {
+      console.warn('[MIIT] 抓取失败:', err.message)
+    }
+
+    // ── 采招网招标公告 ──
+    try {
+      console.log('[CZW] ── 开始抓取采招网数据 ──')
+      const czwItems = await scrapeCaizhaowangLatest()
+      const existingCzwIds = new Set([...bids.map(b => b.id), ...ccgpBids.map(b => b.id), ...czwBids.map(b => b.id)])
+      const newCzw = czwItems.filter(item => !existingCzwIds.has(item.id)).map(item => ({
+        id: item.id, title: item.title,
+        amount: null, region: '全国', city: '',
+        status: 'bidding',
+        publishedAt: item.publishedAt, deadline: null,
+        department: item.title.slice(0, 20) + '...',
+        source: CZW_SOURCE, sourceUrl: item.sourceUrl,
+        description: `来源采招网（${item.category}）：${item.title}`,
+        hasSubcontract: false, competitors: [], winner: null,
+        score: item.score, isRealtime: true,
+        signalSource: '招投标公告',
+      }))
+      const czwLeadIds = new Set(leads.map(l => l.id))
+      for (const bid of newCzw) {
+        if (bid.score >= 55 && !czwLeadIds.has(bid.id)) {
+          const lead = await enhanceLead({
+            id: bid.id, title: bid.title,
+            type: 'bidding', typeName: '招采动作', typeColor: 'blue',
+            signalSource: '招投标公告',
+            score: bid.score,
+            scoreReason: `由采招网实时抓取，关键词匹配度高。`,
+            summary: bid.description, source: CZW_SOURCE, sourceUrl: bid.sourceUrl,
+            region: '全国', city: '', status: 'pending',
+            createdAt: bid.publishedAt, updatedAt: new Date().toISOString().split('T')[0],
+            nextAction: `立即跟进：${bid.title.slice(0, 25)}...`,
+            budget: null, department: bid.department,
+            contact: null, contactRole: null,
+            tags: ['实时抓取', '采招网'], deadline: null, isRealtime: true,
+          })
+          leads.push(lead)
+          czwLeadIds.add(bid.id)
+        }
+      }
+      czwBids.push(...newCzw)
+      crawlerStatus.totalFetched += newCzw.length
+      console.log(`[CZW] ── 完成，新增 ${newCzw.length} 条招标公告 ──`)
+    } catch (err) {
+      console.warn('[CZW] 抓取失败:', err.message)
     }
 
     crawlerStatus.lastSuccess = new Date().toISOString()
@@ -596,25 +702,45 @@ const events = [
 // ============================================================
 // 模拟数据 · 每日线索简报
 // ============================================================
-const generateBriefing = (date, leads_) => ({
-  id: `BR-${date.replace(/-/g, '')}`,
-  date,
-  title: `《智鹰ToG商机日报》${date}`,
-  stats: { total: leads_.length, high: leads_.filter(l => l.score >= 80).length, medium: leads_.filter(l => l.score >= 60 && l.score < 80).length },
-  highlights: leads_.slice(0, 3).map(l => ({ id: l.id, title: l.title, score: l.score, type: l.typeName, nextAction: l.nextAction })),
-  sentChannels: ['飞书', '企业微信'],
-  conversionStats: { pushed: leads_.length, claimed: Math.ceil(leads_.length * 0.7), converted: Math.ceil(leads_.length * 0.3) },
-})
+// 动态生成某天的简报（从当前 leads 实时取数）
+function generateBriefing(date, leads_) {
+  const sorted = [...leads_].sort((a, b) => b.score - a.score)
+  return {
+    id: `BR-${date.replace(/-/g, '')}`,
+    date,
+    title: `《智鹰ToG商机日报》${date}`,
+    stats: {
+      total: sorted.length,
+      high: sorted.filter(l => l.score >= 70).length,
+      medium: sorted.filter(l => l.score >= 55 && l.score < 70).length,
+    },
+    highlights: sorted.filter(l => l.score >= 60).slice(0, 5).map(l => ({
+      id: l.id, title: l.title, score: l.score, type: l.typeName, nextAction: l.nextAction,
+    })),
+    sentChannels: ['飞书', '企业微信'],
+    conversionStats: {
+      pushed: sorted.length,
+      claimed: Math.ceil(sorted.length * 0.7),
+      converted: Math.ceil(sorted.length * 0.3),
+    },
+  }
+}
 
-const briefings = [
-  generateBriefing('2026-03-21', leads.slice(0, 5)),
-  generateBriefing('2026-03-20', leads.slice(2, 7)),
-  generateBriefing('2026-03-19', leads.slice(4, 9)),
-  generateBriefing('2026-03-18', leads.slice(6, 10)),
-  generateBriefing('2026-03-17', leads.slice(8, 12)),
-  generateBriefing('2026-03-14', leads.slice(10, 13)),
-  generateBriefing('2026-03-13', leads.slice(11, 14)),
-]
+// 动态生成最近 N 天的简报列表（基于当前 leads 实时数据）
+function getDynamicBriefings(days = 7) {
+  const result = []
+  const sorted = [...leads].sort((a, b) => b.score - a.score)
+  for (let i = 0; i < days; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().split('T')[0]
+    // 今日简报：展示全部线索（分数最高的优先）
+    // 历史简报：仅展示该天 createdAt 的线索，若无则留空
+    const pool = i === 0 ? sorted : sorted.filter(l => l.createdAt === dateStr)
+    result.push(generateBriefing(dateStr, pool))
+  }
+  return result
+}
 
 // ============================================================
 // API 路由
@@ -723,6 +849,8 @@ app.get('/api/crawler/status', (req, res) => {
       { name: NDRC_SOURCE, url: 'https://www.ndrc.gov.cn/', signalSource: '政策文件', count: ndrcPolicies.length },
       { name: CCTV_SOURCE, url: 'https://www.cctv.com/gyys/ldhd/index.shtml', signalSource: '企业新闻', count: cctvLeads.length },
       { name: CEBPUB_SOURCE, url: 'https://bulletin.cebpubservice.com/', signalSource: '招投标公告', count: cebpubBids.length },
+      { name: CZW_SOURCE, url: 'https://www.caizhaowang.com/', signalSource: '招投标公告', count: czwBids.length },
+      { name: MIIT_SOURCE, url: 'https://www.miit.gov.cn/', signalSource: '政策文件', count: miitPolicies.length },
     ],
     keywords: require('./scrapers/ccgp').FILTER_KEYWORDS,
     nextRun: '每30分钟自动执行一次',
@@ -747,11 +875,11 @@ app.get('/api/graph/customers', (req, res) => res.json({ data: customers }))
 // 营销活动日历
 app.get('/api/events', (req, res) => res.json({ data: events }))
 
-// 每日简报列表
-app.get('/api/briefings', (req, res) => res.json({ data: briefings }))
+// 每日简报列表（动态生成，实时反映线索池最新数据）
+app.get('/api/briefings', (req, res) => res.json({ data: getDynamicBriefings(7) }))
 
-// 今日简报
-app.get('/api/briefings/today', (req, res) => res.json(briefings[0]))
+// 今日简报（动态生成）
+app.get('/api/briefings/today', (req, res) => res.json(getDynamicBriefings(1)[0]))
 
 // ============================================================
 // 启动服务

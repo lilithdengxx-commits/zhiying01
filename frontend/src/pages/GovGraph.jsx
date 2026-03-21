@@ -48,7 +48,7 @@ function CustomerDetailDrawer({ customer, onClose }) {
 
       {/* 历史项目 */}
       <Divider>历史合作项目</Divider>
-      {customer.projects.map((p, i) => (
+      {(customer.projects || []).map((p, i) => (
         <div key={i} style={{ padding: '10px 12px', background: '#fafafa', borderRadius: 8, marginBottom: 8 }}>
           <Text strong style={{ fontSize: 13 }}>{p.name}</Text>
           <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
@@ -82,7 +82,7 @@ function CustomerDetailDrawer({ customer, onClose }) {
 
       {/* 关键联系人 */}
       <Divider>关键联系人</Divider>
-      {customer.contacts.map((c, i) => (
+      {(customer.contacts || []).map((c, i) => (
         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
           <div>
             <Text strong>{c.name}</Text>
@@ -98,7 +98,7 @@ function CustomerDetailDrawer({ customer, onClose }) {
       {/* IT供应商格局 */}
       <Divider>IT供应商格局</Divider>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {customer.suppliers.map((s, i) => (
+        {(customer.suppliers || []).map((s, i) => (
           <Tag key={i} color={s.includes('我司') ? 'blue' : 'default'} style={{ padding: '4px 10px' }}>{s}</Tag>
         ))}
       </div>
@@ -138,19 +138,22 @@ export default function GovGraph() {
     },
     {
       title: '二次商机', key: 'renewal',
-      render: (_, row) => (
-        <div>
-          <Tag color={riskMap[row.renewal.risk]?.color}>{riskMap[row.renewal.risk]?.text}</Tag>
-          <Text style={{ fontSize: 12, display: 'block', marginTop: 2 }}>{row.renewal.title}</Text>
-          {row.renewal.value && <Text type="secondary" style={{ fontSize: 11 }}>预计 {row.renewal.value}万 · {row.renewal.date}</Text>}
-        </div>
-      ),
+      render: (_, row) => {
+        const renewal = row.renewal || {}
+        return (
+          <div>
+            <Tag color={riskMap[renewal.risk]?.color}>{riskMap[renewal.risk]?.text || '未知'}</Tag>
+            <Text style={{ fontSize: 12, display: 'block', marginTop: 2 }}>{renewal.title}</Text>
+            {renewal.value && <Text type="secondary" style={{ fontSize: 11 }}>预计 {renewal.value}万 · {renewal.date}</Text>}
+          </div>
+        )
+      },
     },
     {
       title: 'IT供应商格局', dataIndex: 'suppliers', key: 'suppliers',
       render: arr => (
         <div>
-          {arr.map((s, i) => (
+          {(arr || []).map((s, i) => (
             <Tag key={i} color={s.includes('我司') ? 'blue' : 'default'} style={{ margin: '2px 2px 2px 0', fontSize: 11 }}>{s}</Tag>
           ))}
         </div>
@@ -167,8 +170,8 @@ export default function GovGraph() {
   ]
 
   const renewalList = customers
-    .filter(c => c.renewal.risk === 'low' && c.renewal.value)
-    .sort((a, b) => (b.renewal.value || 0) - (a.renewal.value || 0))
+    .filter(c => c.renewal?.risk === 'low' && c.renewal?.value)
+    .sort((a, b) => (b.renewal?.value || 0) - (a.renewal?.value || 0))
 
   const tabItems = [
     {
@@ -289,8 +292,8 @@ export default function GovGraph() {
         {[
           { title: '存量客户', value: customers.length, suffix: '家', color: '#1677ff' },
           { title: '合同总价值', value: customers.reduce((s, c) => s + c.totalValue, 0), suffix: '万', color: '#fa8c16' },
-          { title: '二次商机', value: customers.filter(c => c.renewal.value).length, suffix: '个', color: '#52c41a' },
-          { title: '预计续签金额', value: customers.filter(c => c.renewal.value).reduce((s, c) => s + (c.renewal.value || 0), 0), suffix: '万', color: '#722ed1' },
+          { title: '二次商机', value: customers.filter(c => c.renewal?.value).length, suffix: '个', color: '#52c41a' },
+          { title: '预计续签金额', value: customers.filter(c => c.renewal?.value).reduce((s, c) => s + (c.renewal?.value || 0), 0), suffix: '万', color: '#722ed1' },
         ].map(s => (
           <Col xs={12} md={6} key={s.title}>
             <Card style={{ borderRadius: 10, textAlign: 'center' }}>

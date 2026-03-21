@@ -1,9 +1,9 @@
-// API 服务层
+﻿// API 服务层
 // USE_MOCK=true 时直接使用本地模拟数据，无需启动后端
 // USE_MOCK=false 时通过 Vite proxy 请求后端 http://localhost:3001
 import * as mock from './mockData'
 
-const USE_MOCK = true
+const USE_MOCK = false
 
 const delay = (ms = 300) => new Promise(r => setTimeout(r, ms))
 

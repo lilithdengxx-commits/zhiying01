@@ -1,4 +1,4 @@
-const express = require('express')
+﻿const express = require('express')
 const cors = require('cors')
 const cron = require('node-cron')
 const { scrapeLatest } = require('./scrapers/ccgp')
@@ -6,6 +6,7 @@ const { scrapeXinhuaLatest, XINHUA_URL } = require('./scrapers/xinhua')
 const { scrapeNdrcLatest, NDRC_SOURCE } = require('./scrapers/ndrc')
 const { scrapeCctvLatest, CCTV_SOURCE } = require('./scrapers/cctv')
 const { scrapeCebpubLatest, CEBPUB_SOURCE } = require('./scrapers/cebpub')
+const { enhanceLead } = require('./scorer')
 
 const app = express()
 app.use(cors())
@@ -81,7 +82,7 @@ async function runCrawler() {
     const existingLeadIds = new Set(leads.map(l => l.id))
     for (const bid of newBids) {
       if (bid.score >= 70 && !existingLeadIds.has(bid.id)) {
-        leads.push({
+        const lead = await enhanceLead({
           id: bid.id,
           title: bid.title,
           type: 'bidding',
@@ -107,6 +108,7 @@ async function runCrawler() {
           deadline: null,
           isRealtime: true,
         })
+        leads.push(lead)
         existingLeadIds.add(bid.id)
       }
     }
@@ -138,8 +140,8 @@ async function runCrawler() {
     // 将高分政策同时推进线索池
     const existingLeadIds2 = new Set(leads.map(l => l.id))
     for (const p of newPolicies) {
-      if (p.score >= 63 && !existingLeadIds2.has(p.id)) {
-        leads.push({
+      if (p.score >= 55 && !existingLeadIds2.has(p.id)) {
+        const lead = await enhanceLead({
           id: p.id,
           title: p.title,
           type: 'policy',
@@ -165,6 +167,7 @@ async function runCrawler() {
           deadline: null,
           isRealtime: true,
         })
+        leads.push(lead)
         existingLeadIds2.add(p.id)
       }
     }
@@ -198,8 +201,8 @@ async function runCrawler() {
       // 高分政策推进线索池
       const nIds = new Set(leads.map(l => l.id))
       for (const p of newNdrc) {
-        if (p.score >= 62 && !nIds.has(p.id)) {
-          leads.push({
+        if (p.score >= 55 && !nIds.has(p.id)) {
+          const lead = await enhanceLead({
             id: p.id, title: p.title,
             type: 'policy', typeName: '政策驱动', typeColor: 'green',
             signalSource: '政策文件',
@@ -213,6 +216,7 @@ async function runCrawler() {
             contact: null, contactRole: null,
             tags: ['实时抓取', '发改委', '政策文件'], deadline: null, isRealtime: true,
           })
+          leads.push(lead)
           nIds.add(p.id)
         }
       }
@@ -233,7 +237,7 @@ async function runCrawler() {
       const cIds = new Set(leads.map(l => l.id))
       for (const item of newCctv) {
         if (item.score >= 61 && !cIds.has(item.id)) {
-          leads.push({
+          const lead = await enhanceLead({
             id: item.id, title: item.title,
             type: 'policy', typeName: '政策驱动', typeColor: 'green',
             signalSource: '企业新闻',
@@ -248,6 +252,7 @@ async function runCrawler() {
             contact: null, contactRole: null,
             tags: ['实时抓取', '央视', '企业新闻'], deadline: null, isRealtime: true,
           })
+          leads.push(lead)
           cIds.add(item.id)
         }
       }
@@ -279,7 +284,7 @@ async function runCrawler() {
       const cbIds = new Set(leads.map(l => l.id))
       for (const bid of newCeb) {
         if (bid.score >= 65 && !cbIds.has(bid.id)) {
-          leads.push({
+          const lead = await enhanceLead({
             id: bid.id, title: bid.title,
             type: 'bidding', typeName: '招采动作', typeColor: 'blue',
             signalSource: '招投标公告',
@@ -293,6 +298,7 @@ async function runCrawler() {
             contact: null, contactRole: null,
             tags: ['实时抓取', '电子招标', bid.region], deadline: null, isRealtime: true,
           })
+          leads.push(lead)
           cbIds.add(bid.id)
         }
       }
@@ -320,188 +326,8 @@ cron.schedule('*/30 * * * *', runCrawler)
 // ============================================================
 // 模拟数据 · 线索库
 // ============================================================
-const leads = [
-  {
-    id: 'L001', title: '广州市政务数据局大数据治理平台建设项目',
-    type: 'bidding', typeName: '招采动作', typeColor: 'blue', score: 94,
-    scoreReason: '明确采购预算800万，建设内容（数据目录/数据质量/数据湖）与我司核心产品高度契合；采购意向已公示，窗口期约2周；无明显偏向友商参数。',
-    summary: '广州市政务数据局发布采购意向公示，拟建设覆盖47个委办局的统一大数据治理平台，预算800万元，技术要求含数据目录、数据质量、数据安全三大核心功能模块。',
-    source: '广东省政府采购网', region: '广东省', city: '广州市',
-    status: 'pending', createdAt: '2026-03-21', updatedAt: '2026-03-21',
-    nextAction: '立即联系广州局采购处王处长，确认技术需求细节并预约方案汇报',
-    budget: 800, department: '广州市政务数据局',
-    contact: '王建国', contactRole: '采购处处长',
-    tags: ['大数据', '数据治理', '华南区', '近期招标'], deadline: '2026-04-05',
-  },
-  {
-    id: 'L002', title: '成都市数字政府AI大模型平台专项规划跟进',
-    type: 'policy', typeName: '政策驱动', typeColor: 'green', score: 78,
-    scoreReason: '成都市《数字政府2.0行动方案》明确提出2026年底前建设政务AI大模型，与我司核心产品高度匹配；但预算尚未确认，需实地摸底资金落地情况。',
-    summary: '成都市发布《成都市数字政府2.0三年行动方案（2025-2027）》，明确建设政务AI大模型平台赋能40+委办局，由市大数据局统筹牵头。',
-    source: '成都市人民政府官网', region: '四川省', city: '成都市',
-    status: 'contacting', createdAt: '2026-03-20', updatedAt: '2026-03-21',
-    nextAction: '本周预约成都市大数据局规划处李处长，摸底专项资金到位情况',
-    budget: null, department: '成都市大数据局',
-    contact: '李明远', contactRole: '规划处处长',
-    tags: ['AI大模型', '数字政府', '西南区'], deadline: null,
-  },
-  {
-    id: 'L003', title: '深圳市南山区政务云平台二期扩容升级',
-    type: 'renewal', typeName: '二次商机', typeColor: 'purple', score: 91,
-    scoreReason: '现有平台已运营2.5年，合同维保到期在即；客情基础极好（甲方主任已确认意向）；二期明确新增AI辅助决策模块，是我司大模型产品的绝佳切入点。',
-    summary: '南山区政务服务数据管理局一期大数据平台（我司承建）已运行2.5年，区领导明确要求2026年Q2前完成二期扩容，新增AI辅助决策、数据要素流通等能力。',
-    source: '内部CRM老客户维护记录', region: '广东省', city: '深圳市',
-    status: 'contacting', createdAt: '2026-03-18', updatedAt: '2026-03-21',
-    nextAction: '本周五前提交《二期建设方案建议书》，并安排高层互访确认立项计划',
-    budget: 1200, department: '南山区政务服务数据管理局',
-    contact: '陈志强', contactRole: '副局长',
-    tags: ['老客户', '二次商机', '大模型', '华南区'], deadline: '2026-05-01',
-  },
-  {
-    id: 'L004', title: '重庆市渝北区智慧城市大数据底座分包商机（华为总包）',
-    type: 'subcontract', typeName: '友商分包', typeColor: 'orange', score: 82,
-    scoreReason: '华为云中标渝北区智慧城市总包（3.5亿），标书中大数据治理模块（预算约1500万）与我司能力高度匹配；华为在重庆有引入分包的先例。',
-    summary: '华为技术有限公司中标重庆市渝北区智慧城市建设EPC总包项目（3.5亿），标书中明确大数据治理、数字孪生两个子模块采用分包模式采购。',
-    source: '重庆市公共资源交易中心中标公告', region: '重庆市', city: '重庆市',
-    status: 'pending', createdAt: '2026-03-19', updatedAt: '2026-03-20',
-    nextAction: '联系华为重庆政务云负责人赵总，确认分包计划和我司介入可行性',
-    budget: 1500, department: '重庆市渝北区智慧城市建设指挥部/华为技术有限公司（总包）',
-    contact: '赵磊', contactRole: '华为重庆政务云总监',
-    tags: ['分包', '智慧城市', '华为生态', '西南区'], deadline: '2026-04-15',
-  },
-  {
-    id: 'L005', title: '山东省数据要素市场化交易平台建设项目',
-    type: 'budget', typeName: '预算专项', typeColor: 'gold', score: 88,
-    scoreReason: '山东省财政厅2026年专项债资金已到位（8000万），省大数据局2025年底已完成规划评审，落地确定性强；建设内容与我司数据要素产品线高度吻合。',
-    summary: '山东省大数据局承接省财政厅8000万专项资金，推进全省统一数据要素市场化交易平台建设，包含数据产品登记、数据交易撮合、数据资产评估三大子系统。',
-    source: '山东省财政厅预算公开报告 + 山东省大数据局官网', region: '山东省', city: '济南市',
-    status: 'contacting', createdAt: '2026-03-17', updatedAt: '2026-03-20',
-    nextAction: '下周二赴济南拜访省大数据局孙副局长，携带数据要素产品Demo',
-    budget: 8000, department: '山东省大数据局',
-    contact: '孙立新', contactRole: '省大数据局副局长',
-    tags: ['数据要素', '专项债', '华东区', '高优先级'], deadline: '2026-04-30',
-  },
-  {
-    id: 'L006', title: '北京市海淀区卫健委公共卫生大数据平台',
-    type: 'bidding', typeName: '招采动作', typeColor: 'blue', score: 71,
-    scoreReason: '招标公告已发布，但评分标准中有"已与海淀区有合作项目加5分"的要求，中软国际在海淀有存量项目，对我司存在一定壁垒。',
-    summary: '海淀区卫生健康委员会发布招标公告，拟建设公共卫生大数据预警平台，预算600万，要求承建方有同类医疗大数据项目案例。',
-    source: '北京市政府采购网', region: '北京市', city: '北京市',
-    status: 'pending', createdAt: '2026-03-21', updatedAt: '2026-03-21',
-    nextAction: '研究评分标准，评估是否有竞争力，若参与需提前一周准备医疗大数据案例材料',
-    budget: 600, department: '海淀区卫生健康委员会',
-    contact: null, contactRole: null,
-    tags: ['医疗大数据', '华北区', '评估中'], deadline: '2026-03-31',
-  },
-  {
-    id: 'L007', title: '杭州市拱墅区某局调任局长引发新系统建设意向',
-    type: 'personnel', typeName: '人事异动', typeColor: 'cyan', score: 75,
-    scoreReason: '老客户西湖区刘局长调任拱墅区大数据局局长，其在西湖区对我司评价极高，调任新岗位后有强烈意愿推进新系统建设，属高质量隐性线索。',
-    summary: '原杭州市西湖区大数据局刘勇局长（我司西湖区平台一期甲方）已正式调任拱墅区大数据局局长，据内部联系人透露，刘局到任后已提出今年建设统一数据共享交换平台的意向。',
-    source: '杭州市政府官网人事任免公告 + 内部联系人', region: '浙江省', city: '杭州市',
-    status: 'contacting', createdAt: '2026-03-15', updatedAt: '2026-03-18',
-    nextAction: '安排高管与刘局进行一次非正式拜会，建立新岗位初期的关系纽带',
-    budget: null, department: '杭州市拱墅区大数据局',
-    contact: '刘勇', contactRole: '局长（原西湖区老客户）',
-    tags: ['人事异动', '人脉拓展', '华东区'], deadline: null,
-  },
-  {
-    id: 'L008', title: '武汉市政务服务局一网通办平台智能化改造',
-    type: 'policy', typeName: '政策驱动', typeColor: 'green', score: 65,
-    scoreReason: '政策方向明确，但武汉市今年财政预算偏紧，项目可能延后至Q3。腾讯云在武汉有强势布局，需评估竞争难度。',
-    summary: '武汉市政务服务和大数据管理局发布《2026年数字政府工作要点》，明确推进一网通办平台AI升级，引入智能审批、智能客服等能力，计划择机采购。',
-    source: '武汉市政务服务局官网', region: '湖北省', city: '武汉市',
-    status: 'pending', createdAt: '2026-03-16', updatedAt: '2026-03-16',
-    nextAction: '列入观察，2026年Q2再跟进预算计划确认情况',
-    budget: null, department: '武汉市政务服务和大数据管理局',
-    contact: null, contactRole: null,
-    tags: ['一网通办', 'AI改造', '中南区', '观察期'], deadline: null,
-  },
-  {
-    id: 'L009', title: '福建省数字政府大模型能力底座集采项目',
-    type: 'bidding', typeName: '招采动作', typeColor: 'blue', score: 87,
-    scoreReason: '省级统一集采，影响力大；采购意向明确提出"本地化部署大模型"要求，与我司私有化产品线高度契合；竞争对手中缺少具备省级案例的本地大模型厂商。',
-    summary: '福建省大数据管理局发布2026年度政务AI大模型能力底座集中采购公示，计划统一采购并部署可供全省40个省直部门调用的政务专用大模型底座，预算3200万。',
-    source: '福建省政府采购网', region: '福建省', city: '福州市',
-    status: 'contacting', createdAt: '2026-03-14', updatedAt: '2026-03-19',
-    nextAction: '已安排下周三技术对接，需提前准备大模型省级部署方案和性能测试报告',
-    budget: 3200, department: '福建省大数据管理局',
-    contact: '张鹏飞', contactRole: '技术处副处长',
-    tags: ['大模型', '省级集采', '华东区', '跟进中'], deadline: '2026-04-20',
-  },
-  {
-    id: 'L010', title: '某大型展会获取：南京市栖霞区智慧园区数据中台需求',
-    type: 'exhibition', typeName: '展会活动', typeColor: 'magenta', score: 58,
-    scoreReason: '展会交流阶段，线索较初级；对方表达了兴趣但未明确预算和时间节点，需进一步筛选确认是否为真实需求。',
-    summary: '在2026中国数字政府大会上，南京市栖霞区经济发展局信息化负责人主动咨询，表达了为高新区建设统一数据中台的想法，但未透露具体预算。',
-    source: '2026中国数字政府大会（линд期）', region: '江苏省', city: '南京市',
-    status: 'pending', createdAt: '2026-03-10', updatedAt: '2026-03-10',
-    nextAction: '发送产品介绍资料，安排一次30分钟线上摸底交流',
-    budget: null, department: '南京市栖霞区经济发展局',
-    contact: '周小华', contactRole: '信息化科科长',
-    tags: ['展会线索', '华东区', '待确认'], deadline: null,
-  },
-  {
-    id: 'L011', title: '内蒙古自治区农业农村厅智慧农业大数据平台',
-    type: 'budget', typeName: '预算专项', typeColor: 'gold', score: 80,
-    scoreReason: '中央农业数字化专项拨款已到位4000万，内蒙古农业厅已启动采购规划；竞争格局相对空白，是拓展新赛道的稀缺窗口期。',
-    summary: '内蒙古自治区农业农村厅获得中央数字农业专项资金4000万元，计划2026年内完成智慧农业大数据平台建设，涵盖农业物联网、农产品溯源、农业生产预警三大模块。',
-    source: '农业农村部官网财政拨款公告', region: '内蒙古', city: '呼和浩特市',
-    status: 'pending', createdAt: '2026-03-20', updatedAt: '2026-03-21',
-    nextAction: '评估是否需专门拓展农业行业赛道，若决策确认，本月内安排初次接触',
-    budget: 4000, department: '内蒙古自治区农业农村厅',
-    contact: null, contactRole: null,
-    tags: ['智慧农业', '专项资金', '北方区'], deadline: null,
-  },
-  {
-    id: 'L012', title: '上海市静安区政务数据共享交换平台废标重招',
-    type: 'bidding', typeName: '招采动作', typeColor: 'blue', score: 83,
-    scoreReason: '第一次因技术评审分歧废标（无明显控标），二次招标评分标准更公平；我司已提前完成竞品对比分析，竞争优势明显。',
-    summary: '上海市静安区大数据中心数据共享交换平台采购项目因技术分歧发出废标公告，现已重新修订采购需求并发布二次招标，预算调整至900万。',
-    source: '上海市政府采购云平台', region: '上海市', city: '上海市',
-    status: 'filed', createdAt: '2026-03-12', updatedAt: '2026-03-20',
-    nextAction: '已立项跟进，华东区交付团队本周完成投标方案初稿',
-    budget: 900, department: '上海市静安区大数据中心',
-    contact: '吴建波', contactRole: '项目处处长',
-    tags: ['废标重招', '已立项', '华东区'], deadline: '2026-04-10',
-  },
-  {
-    id: 'L013', title: '贵州省大数据发展管理局脱敏数据开放平台',
-    type: 'policy', typeName: '政策驱动', typeColor: 'green', score: 62,
-    scoreReason: '贵州作为大数据先行区政策积极，但本地供应商生态壁垒较深（美亚柏科等强势）。需要评估是否值得投入资源拓展。',
-    summary: '贵州省大数据局发布《贵州省公共数据开放工作方案》，明确2026年底前建设省级脱敏数据开放平台，逐步推进政务数据向社会开放。',
-    source: '贵州省大数据发展管理局官网', region: '贵州省', city: '贵阳市',
-    status: 'pending', createdAt: '2026-03-08', updatedAt: '2026-03-08',
-    nextAction: '评估贵州市场竞争格局，确认是否纳入2026年优先拓展区域',
-    budget: null, department: '贵州省大数据发展管理局',
-    contact: null, contactRole: null,
-    tags: ['数据开放', '西南区', '待评估'], deadline: null,
-  },
-  {
-    id: 'L014', title: '南昌市公安局警务大数据综合应用平台',
-    type: 'manual', typeName: '手工录入', typeColor: 'default', score: 85,
-    scoreReason: '通过行业峰会高层引荐获取; 南昌公安已完成初步方案论证（内部已立项）；决策关键人已明确表达合作意向，成单概率极高。',
-    summary: '通过省公安厅大数据局王局引荐，南昌市公安局分管信息化的副局长张副局长邀约方案交流，该项目已完成内部立项，预算1800万，拟于5月发布招标。',
-    source: '行业峰会高层引荐（手工录入）', region: '江西省', city: '南昌市',
-    status: 'contacting', createdAt: '2026-03-05', updatedAt: '2026-03-21',
-    nextAction: '本周五上门汇报方案，重点演示警务AI大模型与大数据融合应用Demo',
-    budget: 1800, department: '南昌市公安局',
-    contact: '张伟国', contactRole: '副局长（分管信息化）',
-    tags: ['公共安全', '高管引荐', '华东区', '高优先级'], deadline: '2026-05-10',
-  },
-  {
-    id: 'L015', title: '天津市滨海新区数字城管运营中心建设',
-    type: 'renewal', typeName: '二次商机', typeColor: 'purple', score: 76,
-    scoreReason: '滨海新区城管平台一期（我司承建，2023年交付）即将到期；甲方对平台整体满意，有明确的系统升级意愿，赢率预计>85%。',
-    summary: '天津市滨海新区城市管理委员会一期数字城管平台三年运维合同2026年6月到期，区城管委主任已在季度工作会上提出启动二期智能化升级方案研讨。',
-    source: '内部CRM老客户维保到期预警', region: '天津市', city: '天津市',
-    status: 'contacting', createdAt: '2026-03-03', updatedAt: '2026-03-19',
-    nextAction: '本月内提交《二期智能化升级方案建议书》，附上AI辅助监督新功能演示',
-    budget: 650, department: '天津市滨海新区城市管理委员会',
-    contact: '许明刚', contactRole: '城管委主任',
-    tags: ['老客户续签', '城市管理', '华北区'], deadline: '2026-05-30',
-  },
-]
+// USE_MOCK=false 模式下从空数组开始，所有线索均来自实时爬虫抓取
+const leads = []
 
 // ============================================================
 // 线索信号源归类（用于筛选）

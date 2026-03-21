@@ -162,7 +162,6 @@ function exportToWord(briefing) {
   </body></html>`
   const blob = new Blob(['\ufeff', html], { type: 'application/msword' })
   const url = URL.createObjectURL(blob)
-  const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url; a.download = `智鹰商机日报_${briefing.date}.doc`
   document.body.appendChild(a); a.click()

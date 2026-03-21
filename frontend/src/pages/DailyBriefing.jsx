@@ -1,57 +1,159 @@
 import React, { useState, useEffect } from 'react'
 import {
   Row, Col, Card, Tag, Typography, Select, Button, Space, Divider,
-  Statistic, List, Alert, Tabs, Input, Badge, Progress, message, Spin,
+  Statistic, List, Alert, Tabs, Input, Badge, Progress, message, Spin, Dropdown,
 } from 'antd'
 import {
   FileTextOutlined, SendOutlined, SearchOutlined, BarChartOutlined,
   ClockCircleOutlined, RiseOutlined, FireOutlined, CheckCircleOutlined,
-  ArrowRightOutlined,
+  ArrowRightOutlined, DownloadOutlined, DownOutlined,
 } from '@ant-design/icons'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { getBriefings } from '../api'
 
 const { Title, Text, Paragraph } = Typography
 
-const scoreColor = s => s >= 80 ? '#52c41a' : s >= 60 ? '#fa8c16' : '#f5222d'
-const scoreBg = s => s >= 80 ? '#f6ffed' : s >= 60 ? '#fff7e6' : '#fff2f0'
+const scoreColor = s => s >= 70 ? '#52c41a' : s >= 60 ? '#fa8c16' : '#f5222d'
+const scoreBg = s => s >= 70 ? '#f6ffed' : s >= 60 ? '#fff7e6' : '#fff2f0'
 const TYPE_COLORS = {
   '招采动作': 'blue', '政策驱动': 'green', '二次商机': 'purple',
   '友商分包': 'orange', '人事异动': 'cyan', '预算专项': 'gold',
   '展会活动': 'magenta', '手工录入': 'default',
 }
 
-function BriefingReport({ briefing }) {
-  if (!briefing) return null
-  const convRate = Math.round((briefing.conversionStats.converted / briefing.conversionStats.pushed) * 100)
+// 假数据兔底高亮显示（真实线索 < 5 时剭至 5 条）
+const MOCK_FALLBACK_HIGHLIGHTS = [
+  { id: 'MOCK001', title: '某省大数据发展局智慧政务平台建设项目（采购意向公示）', score: 73, type: '招采动作', region: '华东区', nextAction: '建议24小时内核实采购经办人信息，提前递送DIOS平台方案资料' },
+  { id: 'MOCK002', title: '国家发改委《“十五五”数字基础设施装备规划》印发（大数据中心第二期）', score: 70, type: '政策驱动', region: '全国', nextAction: '提炼政策卖点，本周内更新DIOS平台适配材料并分发战区经理' },
+  { id: 'MOCK003', title: '某市融媒体中心AI内容生产平台招标（预算800万）', score: 68, type: '招采动作', region: '华南区', nextAction: '华南区经理跟进，本月内完成调研走访' },
+  { id: 'MOCK004', title: '某居先间咪山区公安分局大数据实战平台升级改造', score: 65, type: '招采动作', region: '华北区', nextAction: '进入线索培育池，每月跟进采购进度' },
+  { id: 'MOCK005', title: '工信部《2026年数字经济专项资金申报指南》发布（A类资池治理方向）', score: 62, type: '政策驱动', region: '全国', nextAction: '关注A类资池申报窗口，挑选目标客户进行项目医合' },
+]
+
+// 导出 PDF
+function exportToPDF(briefing) {
+  if (!briefing) return message.warning('暂无简报数据可导出')
   const highlights = briefing.highlights || []
-  const totalCount = highlights.length
-  const avgScore = totalCount ? Math.round(highlights.reduce((s, h) => s + (h.score || 0), 0) / totalCount) : 0
-  const highCount = highlights.filter(h => (h.score || 0) >= 85).length
+  const html = `<!DOCTYPE html><html><head>
+    <meta charset="utf-8">
+    <title>智鹰ToG商机日报 ${briefing.date}</title>
+    <style>
+      body{font-family:'Microsoft YaHei',Arial,sans-serif;margin:30px;color:#333;font-size:13px;}
+      h1{color:#001529;border-bottom:3px solid #1677ff;padding-bottom:10px;margin-bottom:20px;}
+      h2{color:#1677ff;margin:20px 0 10px;}
+      .header-stats{display:flex;gap:30px;margin:15px 0;padding:15px;background:#f8fbff;border-radius:8px;}
+      .stat{text-align:center;} .stat .num{font-size:28px;font-weight:bold;color:#1677ff;display:block;}
+      .stat.high .num{color:#f5a623;} .stat.med .num{color:#52c41a;}
+      .lead-item{border-left:4px solid #1677ff;padding:12px 16px;margin:8px 0;background:#f8fbff;border-radius:0 8px 8px 0;}
+      .lead-item.high{border-color:#52c41a;background:#f6ffed;} .lead-item.mock{border-color:#d9d9d9;background:#fafafa;opacity:0.8;}
+      .score{display:inline-block;width:34px;height:34px;border-radius:50%;background:#1677ff;color:white;text-align:center;line-height:34px;font-weight:bold;font-size:12px;margin-right:10px;}
+      .score.high{background:#52c41a;} .action{color:#1677ff;font-style:italic;font-size:12px;margin-top:6px;}
+      .footer{margin-top:30px;padding-top:15px;border-top:1px solid #eee;color:#999;font-size:11px;text-align:center;}
+      @media print{body{margin:15px;} .no-print{display:none;}}
+    </style>
+  </head><body>
+    <h1>👅 智鹰ToG商机日报</h1>
+    <p>日期：<strong>${briefing.date}</strong> &nbsp;&nbsp; 系统自动生成 &nbsp;&nbsp; 已推送至：${(briefing.sentChannels || []).join('、')}</p>
+    <div class="header-stats">
+      <div class="stat"><span class="num">${briefing.stats.total}</span>总线索</div>
+      <div class="stat high"><span class="num">${briefing.stats.high}</span>高分≥⁰</div>
+      <div class="stat med"><span class="num">${briefing.stats.medium}</span>中分</div>
+    </div>
+    <h2>📋 今日高优先级线索</h2>
+    ${highlights.map((h, i) => `
+      <div class="lead-item ${h.score >= 70 ? 'high' : ''} ${h.isMock ? 'mock' : ''}">
+        <div style="display:flex;align-items:center;">
+          <span class="score ${h.score >= 70 ? 'high' : ''}">${h.score}</span>
+          <strong>[${String(i + 1).padStart(2, '0')}] ${h.title}${h.isMock ? ' (参考数据)' : ''}</strong>
+        </div>
+        <div style="margin-top:6px;color:#666;">类型：${h.type || '-'} &nbsp; 地区：${h.region || '全国'}</div>
+        <div class="action">💡 建议动作：${h.nextAction || '-'}</div>
+      </div>`).join('')}
+    <div class="footer">智鹰ToG商机智能系统 · 中科闻歌 &copy; ${new Date().getFullYear()}</div>
+  </body></html>`
+  const w = window.open('', '_blank', 'width=900,height=700')
+  if (!w) { message.error('请允许弹出窗口后重试'); return }
+  w.document.write(html)
+  w.document.close()
+  setTimeout(() => w.print(), 800)
+}
+
+// 导出 Word
+function exportToWord(briefing) {
+  if (!briefing) return message.warning('暂无简报数据可导出')
+  const highlights = briefing.highlights || []
+  const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office'
+    xmlns:w='urn:schemas-microsoft-com:office:word'
+    xmlns='http://www.w3.org/TR/REC-html40'>
+  <head><meta charset='utf-8'>
+  <title>智鹰商机日报 ${briefing.date}</title>
+  <style>
+    body{font-family:'Microsoft YaHei',SimSun,serif;margin:2cm;color:#333;font-size:12pt;}
+    h1{color:#001529;font-size:18pt;border-bottom:1px solid #1677ff;}
+    h2{color:#1677ff;font-size:14pt;margin-top:16pt;}
+    p{line-height:1.6;}
+    .stat-row{margin:10pt 0;}
+    .lead-box{border-left:4pt solid #1677ff;padding:8pt 12pt;margin:8pt 0;background:#f8fbff;}
+    .lead-box.high{border-color:#52c41a;background:#f6ffed;}
+    .score{font-weight:bold;color:#1677ff;font-size:14pt;}
+    .score.high{color:#52c41a;}
+  </style></head><body>
+  <h1>👅 智鹰ToG商机日报</h1>
+  <p><b>日期：</b>${briefing.date} &nbsp;&nbsp; <b>推送渠道：</b>${(briefing.sentChannels || []).join('、')}</p>
+  <div class="stat-row">总线索：<b>${briefing.stats.total}</b>条 &nbsp;&nbsp; 高分(≥70)：<b>${briefing.stats.high}</b>条 &nbsp;&nbsp; 中分：<b>${briefing.stats.medium}</b>条</div>
+  <h2>📋 今日高优先级线索</h2>
+  ${highlights.map((h, i) => `
+    <div class="lead-box ${h.score >= 70 ? 'high' : ''}">
+      <p><span class="score ${h.score >= 70 ? 'high' : ''}">${h.score}分</span> &nbsp; <b>[${String(i + 1).padStart(2, '0')}] ${h.title}${h.isMock ? '（参考）' : ''}</b></p>
+      <p>类型：${h.type || '-'} | 地区：${h.region || '全国'}</p>
+      <p><i>💡 建议动作：${h.nextAction || '-'}</i></p>
+    </div>`).join('')}
+  <p style="margin-top:20pt;color:#999;font-size:10pt;text-align:center;">智鹰ToG商机智能系统 · 中科闻歌</p>
+  </body></html>`
+  const blob = new Blob(['﻿', html], { type: 'application/msword' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = `智鹰商机日报_${briefing.date}.doc`
+  document.body.appendChild(a); a.click()
+  document.body.removeChild(a); URL.revokeObjectURL(url)
+  message.success(`已导出Word文件：智鹰商机日报_${briefing.date}.doc`)
+}
+
+function BriefingReport({ briefing, isTodayBriefing = false }) {
+  if (!briefing) return null
+  const highlights = briefing.highlights || []
+  // 真实线索 < 5 时用假数据兔底
+  const displayHighlights = highlights.length >= 5
+    ? highlights
+    : [...highlights, ...MOCK_FALLBACK_HIGHLIGHTS.slice(0, 5 - highlights.length).map(h => ({ ...h, isMock: true }))]
+
+  const totalCount = displayHighlights.filter(h => !h.isMock).length || highlights.length || 0
+  const pushed = briefing.conversionStats?.pushed || 0
+  const avgScore = totalCount ? Math.round(highlights.reduce((s, h) => s + (h.score || 0), 0) / Math.max(highlights.length, 1)) : 0
+  const highCount = highlights.filter(h => (h.score || 0) >= 70).length
   const typeCounter = highlights.reduce((acc, h) => {
     const key = h.type || '其他'
     acc[key] = (acc[key] || 0) + 1
     return acc
   }, {})
   const topTypes = Object.entries(typeCounter)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([k, v]) => `${k}${v}条`)
-    .join('、')
+    .sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([k, v]) => `${k}${v}条`).join('、')
   const regionCounter = highlights.reduce((acc, h) => {
-    const key = h.region || '未知区域'
+    const key = h.region || '全国'
     acc[key] = (acc[key] || 0) + 1
     return acc
   }, {})
   const topRegions = Object.entries(regionCounter)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 2)
-    .map(([k, v]) => `${k}${v}条`)
-    .join('、')
-  const actionAdvice =
-    highCount >= 8
-      ? '建议立即建立A类攻坚清单，优先推进高分线索的一对一拜访与方案递交，并在48小时内完成负责人认领。'
-      : '建议按区域建立分层跟进节奏，先完成核心部门需求确认，再将中分线索转入持续培育池。'
+    .sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .map(([k, v]) => `${k}${v}条`).join('、')
+
+  // 生成不同语气的行动建议
+  const actionAdvice = highCount >= 5
+    ? '建议立即建立A类攻坚清单，优先推进高分线索的一对一拜访与方案递交，48小时内完成负责人认领。'
+    : highCount >= 2
+    ? '建议尽快安排高分项目吃饯或技方预沟通，将中分线索转入持续培育池，按战区建立分层跟进节奏。'
+    : '建议优先完成核心部门需求确认，将已识别线索按产品匹配度分类，提升后续研判质量。'
 
   return (
     <div>
@@ -76,7 +178,7 @@ function BriefingReport({ briefing }) {
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 28, fontWeight: 700, color: '#f5a623' }}>{briefing.stats.high}</div>
-                <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11 }}>高分≥80</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11 }}>高分≥70</Text>
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 28, fontWeight: 700, color: '#52c41a' }}>{briefing.stats.medium}</div>
@@ -106,20 +208,36 @@ function BriefingReport({ briefing }) {
           lineHeight: 1.75,
         }}>
           <Text strong>今日线索概述：</Text>
-          本日共纳入 {totalCount} 条线索，平均评分 {avgScore} 分，其中高优先级（≥85分）{highCount} 条；线索类型以 {topTypes || '暂无'} 为主，区域分布集中在 {topRegions || '暂无'}。{actionAdvice}
+          {totalCount > 0
+            ? `今日展示高优线索 ${totalCount} 条，平均评分 ${avgScore} 分；其中高分（≥70分）${highCount} 条需优先跟进。线索类型以${topTypes || '蚂薗吊夜'}为主${topRegions && topRegions !== '全国1条' ? '，区域分布翁盖' + topRegions : ''}。${actionAdvice}`
+            : '当前日期尚无实时截取的匹配线索，以下点位为坫近期商机拆解参考，建议业务团队结合自身业务范围判断关注水平。'
+          }
         </Paragraph>
-        <Text strong style={{ fontSize: 13, color: '#444' }}>📋 今日高优先级线索（AI评分 ≥ 70分）</Text>
-        <Divider style={{ margin: '10px 0' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text strong style={{ fontSize: 13, color: '#444' }}>📋 今日高优先级线索（AI评分 ≥ 60分）</Text>
+          {isTodayBriefing && (
+            <Dropdown menu={{
+              items: [
+                { key: 'pdf', label: '📄 导出 PDF', onClick: () => exportToPDF(briefing) },
+                { key: 'word', label: '📝 导出 Word', onClick: () => exportToWord(briefing) },
+              ]
+            }}>
+              <Button size="small" icon={<DownloadOutlined />}>导出 <DownOutlined /></Button>
+            </Dropdown>
+          )}
+        </div>
 
-        {highlights.map((h, i) => (
+        <Divider style={{ margin: '8px 0' }} />
+        {displayHighlights.map((h, i) => (
           <div
             key={h.id}
             style={{
               padding: '12px 14px',
-              background: scoreBg(h.score),
+              background: h.isMock ? '#fafafa' : scoreBg(h.score),
               borderRadius: 8,
               marginBottom: 10,
-              borderLeft: `3px solid ${scoreColor(h.score)}`,
+              borderLeft: `3px solid ${h.isMock ? '#d9d9d9' : scoreColor(h.score)}`,
+              opacity: h.isMock ? 0.85 : 1,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -133,7 +251,8 @@ function BriefingReport({ briefing }) {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <Text strong style={{ fontSize: 13 }}>【{String(i + 1).padStart(2, '0')}】{h.title}</Text>
+                <Text strong style={{ fontSize: 13 }}>【{String(i + 1).padStart(2, '0')}】{h.title}</Text>
+                    {h.isMock && <Tag color="default" style={{ fontSize: 10, margin: '0 0 0 4px' }}>参考</Tag>}
                 </div>
                 <Space size={4}>
                   <Tag color={TYPE_COLORS[h.type]} style={{ fontSize: 11, margin: 0 }}>{h.type}</Tag>
@@ -184,11 +303,9 @@ export default function DailyBriefing() {
   const [activeTab, setActiveTab] = useState('today')
 
   useEffect(() => {
-    getBriefings().then(r => {
-      setBriefings(r.data)
-      setSelectedDate(r.data[0]?.date)
-      setLoading(false)
-    })
+    getBriefings()
+      .then(r => { setBriefings(r.data || []); setSelectedDate(r.data?.[0]?.date); setLoading(false) })
+      .catch(e => { console.error('[DailyBriefing] fetch failed:', e); setBriefings([]); setLoading(false) })
   }, [])
 
   const currentBriefing = briefings.find(b => b.date === selectedDate)
@@ -208,9 +325,13 @@ export default function DailyBriefing() {
 
   if (loading) return <div style={{ padding: 80, textAlign: 'center' }}><Spin size="large" /></div>
 
-  const totalConvRate = briefings.length
-    ? Math.round(briefings.reduce((s, b) => s + b.conversionStats.converted / b.conversionStats.pushed, 0) / briefings.length * 100)
-    : 0
+  // 安全除法，避免分母为0时出现 NaN
+  const safeDiv = (a, b) => (b > 0 ? a / b : 0)
+  const totalPushed = briefings.reduce((s, b) => s + (b.conversionStats?.pushed || 0), 0)
+  const totalClaimed = briefings.reduce((s, b) => s + (b.conversionStats?.claimed || 0), 0)
+  const totalConverted = briefings.reduce((s, b) => s + (b.conversionStats?.converted || 0), 0)
+  const claimRate = totalPushed > 0 ? Math.round(totalClaimed / totalPushed * 100) : 0
+  const totalConvRate = totalPushed > 0 ? Math.round(totalConverted / totalPushed * 100) : 0
 
   const tabItems = [
     {
@@ -224,7 +345,7 @@ export default function DailyBriefing() {
               bodyStyle={{ padding: 0 }}
               title={null}
             >
-              <BriefingReport briefing={sortHighlights(briefings[0])} />
+              <BriefingReport briefing={sortHighlights(briefings[0])} isTodayBriefing={true} />
             </Card>
           </Col>
           <Col xs={24} lg={8}>
@@ -269,10 +390,10 @@ export default function DailyBriefing() {
             >
               <Row gutter={8} style={{ marginBottom: 12 }}>
                 <Col span={8}>
-                  <Statistic title="推送总量" value={briefings.reduce((s, b) => s + b.conversionStats.pushed, 0)} valueStyle={{ fontSize: 20, color: '#1677ff' }} />
+                  <Statistic title="推送总量" value={totalPushed} valueStyle={{ fontSize: 20, color: '#1677ff' }} />
                 </Col>
                 <Col span={8}>
-                  <Statistic title="认领率" value={`${Math.round(briefings.reduce((s, b) => s + b.conversionStats.claimed / b.conversionStats.pushed, 0) / briefings.length * 100)}%`} valueStyle={{ fontSize: 20, color: '#52c41a' }} />
+                  <Statistic title="认领率" value={`${claimRate}%`} valueStyle={{ fontSize: 20, color: '#52c41a' }} />
                 </Col>
                 <Col span={8}>
                   <Statistic title="转化率" value={`${totalConvRate}%`} valueStyle={{ fontSize: 20, color: '#fa8c16' }} />
@@ -282,11 +403,11 @@ export default function DailyBriefing() {
                 <Text type="secondary" style={{ fontSize: 11 }}>{`近${briefings.length}日转化漏斗`}</Text>
               </div>
               {[
-                { label: '推送线索', value: briefings.reduce((s, b) => s + b.conversionStats.pushed, 0), max: null, color: '#1677ff' },
-                { label: '销售认领', value: briefings.reduce((s, b) => s + b.conversionStats.claimed, 0), max: briefings.reduce((s, b) => s + b.conversionStats.pushed, 0), color: '#52c41a' },
-                { label: '转为立项', value: briefings.reduce((s, b) => s + b.conversionStats.converted, 0), max: briefings.reduce((s, b) => s + b.conversionStats.pushed, 0), color: '#fa8c16' },
+                { label: '推送线索', value: totalPushed, max: null, color: '#1677ff' },
+                { label: '销售认领', value: totalClaimed, max: totalPushed, color: '#52c41a' },
+                { label: '转为立项', value: totalConverted, max: totalPushed, color: '#fa8c16' },
               ].map(r => {
-                const pct = r.max ? Math.round(r.value / r.max * 100) : 100
+                const pct = r.max > 0 ? Math.round(r.value / r.max * 100) : (r.max === null ? 100 : 0)
                 return (
                   <div key={r.label} style={{ marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -394,10 +515,10 @@ export default function DailyBriefing() {
           <Col xs={24} lg={8}>
             <Card title="📊 效能汇总" style={{ borderRadius: 10 }}>
               {[
-                { title: `近${briefings.length}日累计推送`, value: briefings.reduce((s, b) => s + b.conversionStats.pushed, 0), suffix: '条', color: '#1677ff' },
-                { title: '销售认领率', value: `${Math.round(briefings.reduce((s, b) => s + b.conversionStats.claimed / b.conversionStats.pushed, 0) / briefings.length * 100)}%`, suffix: '', color: '#52c41a' },
+                { title: `近${briefings.length}日累计推送`, value: totalPushed, suffix: '条', color: '#1677ff' },
+                { title: '销售认领率', value: `${claimRate}%`, suffix: '', color: '#52c41a' },
                 { title: '线索转化率', value: `${totalConvRate}%`, suffix: '', color: '#fa8c16' },
-                { title: '待挖掘潜值', value: briefings.reduce((s, b) => s + (b.conversionStats.pushed - b.conversionStats.converted), 0), suffix: '条', color: '#722ed1' },
+                { title: '待挖掘潜值', value: totalPushed - totalConverted, suffix: '条', color: '#722ed1' },
               ].map(s => (
                 <div key={s.title} style={{ padding: '12px 0', borderBottom: '1px solid #f5f5f5' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>

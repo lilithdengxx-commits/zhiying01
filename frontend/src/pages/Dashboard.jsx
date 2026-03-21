@@ -50,9 +50,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([getDashboardStats(), getTodos()]).then(([s, t]) => {
-      setStats(s); setTodos(t); setLoading(false)
-    })
+    Promise.all([getDashboardStats(), getTodos()])
+      .then(([s, t]) => { setStats(s); setTodos(t); setLoading(false) })
+      .catch(e => { console.error('[Dashboard] fetch failed:', e); setLoading(false) })
   }, [])
 
   // 今日顶级线索（从 mockData 直接取以便展示评分）
@@ -92,7 +92,7 @@ export default function Dashboard() {
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
         {[
           { title: '线索总量', value: stats.totalLeads, suffix: '条', icon: <BellOutlined />, color: '#1677ff', trend: '+3 今日新增' },
-          { title: '高分线索(≥80)', value: stats.highPriority, suffix: '条', icon: <FireOutlined />, color: '#f5222d', trend: '需优先跟进' },
+          { title: '高分线索(≥70)', value: stats.highPriority, suffix: '条', icon: <FireOutlined />, color: '#f5222d', trend: '需优先跟进' },
           { title: '接触跟进中', value: stats.contacting, suffix: '个', icon: <ClockCircleOutlined />, color: '#fa8c16', trend: '销售进行中' },
           { title: '已立项商机', value: stats.filed, suffix: '个', icon: <TrophyOutlined />, color: '#52c41a', trend: '进入招投标' },
         ].map(item => (

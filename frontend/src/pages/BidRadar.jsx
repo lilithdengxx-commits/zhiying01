@@ -12,6 +12,7 @@ import { getBids, getCompetitors } from '../api'
 const { Title, Text, Paragraph } = Typography
 
 const STATUS_COLOR = { intention: 'orange', bidding: 'blue', awarded: 'green', failed: 'red' }
+const STATUS_NAMES = { intention: '采购意向', bidding: '招标进行中', awarded: '已成交', failed: '废标/终止' }
 
 function SubcontractAlert({ bids }) {
   const subs = bids.filter(b => b.hasSubcontract)
@@ -102,12 +103,9 @@ export default function BidRadar() {
   const [activeTab, setActiveTab] = useState('bids')
 
   useEffect(() => {
-    Promise.all([
-      getBids(),
-      getCompetitors(),
-    ]).then(([b, c]) => {
-      setBids(b.data); setCompetitors(c.data); setLoading(false)
-    })
+    Promise.all([getBids(), getCompetitors()])
+      .then(([b, c]) => { setBids(b.data || []); setCompetitors(c.data || []); setLoading(false) })
+      .catch(e => { console.error('[BidRadar] fetch failed:', e); setBids([]); setCompetitors([]); setLoading(false) })
   }, [])
 
   const filteredBids = bids.filter(b => {
@@ -118,8 +116,12 @@ export default function BidRadar() {
 
   const columns = [
     {
-      title: '招采状态', dataIndex: 'statusName', key: 'status', width: 100,
-      render: (name, row) => <Badge color={STATUS_COLOR[row.statusKey] || 'default'} text={name} />,
+      title: '招采状态', key: 'status', width: 110,
+      render: (_, row) => {
+        const statusKey = row.statusKey || row.status || 'bidding'
+        const name = row.statusName || STATUS_NAMES[statusKey] || statusKey
+        return <Badge color={STATUS_COLOR[statusKey] || 'default'} text={name} />
+      },
     },
     {
       title: '项目名称', dataIndex: 'title', key: 'title',

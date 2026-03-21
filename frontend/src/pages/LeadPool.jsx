@@ -212,10 +212,16 @@ export default function LeadPool() {
 
   const fetchLeads = async (f = filters) => {
     setLoading(true)
-    const clean = Object.fromEntries(Object.entries(f).filter(([, v]) => v))
-    const { data } = await getLeads(clean)
-    setLeads(data)
-    setLoading(false)
+    try {
+      const clean = Object.fromEntries(Object.entries(f).filter(([, v]) => v))
+      const { data } = await getLeads(clean)
+      setLeads(data || [])
+    } catch (e) {
+      console.error('[LeadPool] fetch failed:', e)
+      setLeads([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { fetchLeads() }, [])

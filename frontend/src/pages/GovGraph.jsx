@@ -117,7 +117,9 @@ export default function GovGraph() {
   const [activeTab, setActiveTab] = useState('customers')
 
   useEffect(() => {
-    getCustomers().then(r => { setCustomers(r.data); setLoading(false) })
+    getCustomers()
+      .then(r => { setCustomers(r.data || []); setLoading(false) })
+      .catch(e => { console.error('[GovGraph] fetch failed:', e); setCustomers([]); setLoading(false) })
   }, [])
 
   const columns = [

@@ -17,11 +17,18 @@ export default function PolicyRadar() {
 
   const fetch_ = async (kw = keyword, lv = level) => {
     setLoading(true)
-    const clean = {}
-    if (kw) clean.keyword = kw
-    if (lv) clean.level = lv
-    const { data } = await getPolicies(clean)
-    setPolicies(data); setLoading(false)
+    try {
+      const clean = {}
+      if (kw) clean.keyword = kw
+      if (lv) clean.level = lv
+      const { data } = await getPolicies(clean)
+      setPolicies(data || [])
+    } catch (e) {
+      console.error('[PolicyRadar] fetch failed:', e)
+      setPolicies([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { fetch_() }, [])

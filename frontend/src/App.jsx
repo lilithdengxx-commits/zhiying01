@@ -77,8 +77,8 @@ function AppInner() {
             <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: '10px 12px' }}>
               <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>数据源状态</Text>
               {[
-                { name: '政采网', ok: true }, { name: '标讯平台', ok: true },
-                { name: '企查查API', ok: false }, { name: '政府官网', ok: true },
+                { name: '政府采购网(CCGP)', ok: true }, { name: '中国电子招标投标', ok: true },
+                { name: '工信部官网', ok: true }, { name: '新华网/发改委', ok: true },
               ].map(s => (
                 <div key={s.name} style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.ok ? '#52c41a' : '#faad14', flexShrink: 0 }} />

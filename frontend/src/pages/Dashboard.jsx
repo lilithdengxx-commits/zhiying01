@@ -4,45 +4,12 @@ import {
   RiseOutlined, FireOutlined, ClockCircleOutlined, TrophyOutlined,
   ArrowRightOutlined, BellOutlined, CalendarOutlined, CheckCircleOutlined,
 } from '@ant-design/icons'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { getDashboardStats, getTodos } from '../api'
 
 const { Title, Text, Paragraph } = Typography
 
-const FUNNEL_COLORS = ['#1677ff', '#52c41a', '#fa8c16', '#f5222d']
-
 // 分数色
 const scoreColor = s => s >= 80 ? '#52c41a' : s >= 60 ? '#fa8c16' : '#f5222d'
-const scoreText = s => s >= 80 ? '高分' : s >= 60 ? '中分' : '低分'
-
-// 简单漏斗可视化
-function FunnelViz({ data }) {
-  const max = data[0]?.value || 1
-  return (
-    <div style={{ padding: '8px 0' }}>
-      {data.map((item, i) => {
-        const width = Math.round((item.value / max) * 100)
-        return (
-          <div key={item.name} style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={{ fontSize: 13 }}>{item.name}</Text>
-              <Text strong style={{ color: item.fill }}>{item.value} 个</Text>
-            </div>
-            <div style={{ background: '#f0f0f0', borderRadius: 4, height: 24, overflow: 'hidden' }}>
-              <div style={{
-                width: `${width}%`, height: '100%', background: item.fill,
-                borderRadius: 4, transition: 'width 0.8s ease',
-                display: 'flex', alignItems: 'center', paddingLeft: 8,
-              }}>
-                {width > 25 && <Text style={{ color: '#fff', fontSize: 12 }}>{width}%</Text>}
-              </div>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null)
@@ -177,37 +144,25 @@ export default function Dashboard() {
           </Card>
         </Col>
 
-        {/* 右侧：漏斗 + 今日日程 */}
+        {/* 右侧：今日日程 */}
         <Col xs={24} lg={8}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* 商机漏斗 */}
-            <Card
-              title="📊 商机漏斗"
-              style={{ borderRadius: 10 }}
-              bodyStyle={{ padding: '12px 16px' }}
-            >
-              <FunnelViz data={stats.funnel} />
-            </Card>
-
-            {/* 今日日程 */}
-            <Card
-              title={<><CalendarOutlined style={{ color: '#722ed1' }} /> 今日日程</>}
-              style={{ borderRadius: 10 }}
-              bodyStyle={{ padding: '12px 16px' }}
-            >
-              <Timeline
-                items={todaySchedule.map(s => ({
-                  dot: <ClockCircleOutlined style={{ color: '#1677ff' }} />,
-                  children: (
-                    <div>
-                      <Text strong style={{ fontSize: 12 }}>{s.time}</Text>
-                      <Text style={{ fontSize: 12, marginLeft: 8, color: '#555' }}>{s.event}</Text>
-                    </div>
-                  ),
-                }))}
-              />
-            </Card>
-          </div>
+          <Card
+            title={<><CalendarOutlined style={{ color: '#722ed1' }} /> 今日日程</>}
+            style={{ borderRadius: 10, height: '100%' }}
+            bodyStyle={{ padding: '12px 16px' }}
+          >
+            <Timeline
+              items={todaySchedule.map(s => ({
+                dot: <ClockCircleOutlined style={{ color: '#1677ff' }} />,
+                children: (
+                  <div>
+                    <Text strong style={{ fontSize: 12 }}>{s.time}</Text>
+                    <Text style={{ fontSize: 12, marginLeft: 8, color: '#555' }}>{s.event}</Text>
+                  </div>
+                ),
+              }))}
+            />
+          </Card>
         </Col>
       </Row>
     </div>

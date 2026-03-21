@@ -501,7 +501,7 @@ export const customers = [
       { name: '滨海新区数字城管平台一期', year: 2023, value: 380, status: '维保到期（2026-06）', role: '总包' },
     ],
     totalValue: 380, lastContact: '2026-03-19',
-    renewal: { risk: 'low', riskName: '低风险', title: '二期智能化改造+维保续签', value: 650, date: '2026-Q2' },
+    renewal: { risk: 'medium', riskName: '中等', title: '二期智能化改造+维保续签', value: 650, date: '2026-Q2' },
     contacts: [{ name: '许明刚', role: '城管委主任', relation: '良好', phone: '138****0004' }],
     suppliers: ['我司（主包）', '科大讯飞（AI语音）'],
   },

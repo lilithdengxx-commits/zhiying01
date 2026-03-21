@@ -23,11 +23,41 @@ const TYPE_COLORS = {
 
 // 假数据兔底高亮显示（真实线索 < 5 时剭至 5 条）
 const MOCK_FALLBACK_HIGHLIGHTS = [
-  { id: 'MOCK001', title: '某省大数据发展局智慧政务平台建设项目（采购意向公示）', score: 73, type: '招采动作', region: '华东区', nextAction: '建议24小时内核实采购经办人信息，提前递送DIOS平台方案资料' },
-  { id: 'MOCK002', title: '国家发改委《“十五五”数字基础设施装备规划》印发（大数据中心第二期）', score: 70, type: '政策驱动', region: '全国', nextAction: '提炼政策卖点，本周内更新DIOS平台适配材料并分发战区经理' },
-  { id: 'MOCK003', title: '某市融媒体中心AI内容生产平台招标（预算800万）', score: 68, type: '招采动作', region: '华南区', nextAction: '华南区经理跟进，本月内完成调研走访' },
-  { id: 'MOCK004', title: '某居先间咪山区公安分局大数据实战平台升级改造', score: 65, type: '招采动作', region: '华北区', nextAction: '进入线索培育池，每月跟进采购进度' },
-  { id: 'MOCK005', title: '工信部《2026年数字经济专项资金申报指南》发布（A类资池治理方向）', score: 62, type: '政策驱动', region: '全国', nextAction: '关注A类资池申报窗口，挑选目标客户进行项目医合' },
+  {
+    id: 'MOCK001', title: '某省大数据发展局智慧政务平台建设项目（采购意向公示）', score: 73,
+    type: '招采动作', region: '华东区',
+    scoreReason: '采购意向公示阶段，信息完整度高，预算规模匹配DIOS平台核心能力，需求与产品高度契合',
+    summary: '该省级大数据发展局发布智慧政务平台建设采购意向，预算约1200万，主要采购方向为政务数据共享交换、AI辅助审批及数据可视化分析，计划Q2进入正式采购流程。',
+    nextAction: '建议24小时内核实采购经办人信息，提前递送DIOS平台方案资料',
+  },
+  {
+    id: 'MOCK002', title: '国家发改委《"十五五"数字基础设施装备规划》印发（大数据中心第二期）', score: 70,
+    type: '政策驱动', region: '全国',
+    scoreReason: '国家级政策文件，明确大数据中心二期建设方向，将直接带动地方项目落地，政策窗口期约3-6个月',
+    summary: '国家发改委正式印发"十五五"数字基础设施装备规划，其中大数据中心第二期投资规模超千亿，重点支持智能算力、数据要素流通平台建设，各省将在Q3前发布配套落地方案。',
+    nextAction: '提炼政策卖点，本周内更新DIOS平台适配材料并分发战区经理',
+  },
+  {
+    id: 'MOCK003', title: '某市融媒体中心AI内容生产平台招标（预算800万）', score: 68,
+    type: '招采动作', region: '华南区',
+    scoreReason: '预算规模适中，AI内容生产方向与公司产品线吻合，竞争对手情况尚不明朗，先入优势可期',
+    summary: '华南某地级市融媒体中心发布AI内容生产平台采购需求，预算800万，核心需求包括视频AI摘要、智能字幕生成、图文自动编辑等功能，预计7月完成招标。',
+    nextAction: '华南区经理跟进，本月内完成调研走访',
+  },
+  {
+    id: 'MOCK004', title: '某区公安分局大数据实战平台升级改造', score: 65,
+    type: '招采动作', region: '华北区',
+    scoreReason: '公安大数据是传统优势领域，升级改造类项目竞争相对可控，已有相似案例背书',
+    summary: '华北某区公安分局启动大数据实战平台升级改造评估，现有平台运行3年，主要痛点为数据融合效率低、研判算法落后，升级需求集中在AI智能研判和跨库碰撞分析两个模块。',
+    nextAction: '进入线索培育池，每月跟进采购进度',
+  },
+  {
+    id: 'MOCK005', title: '工信部《2026年数字经济专项资金申报指南》发布（A类资金治理方向）', score: 62,
+    type: '政策驱动', region: '全国',
+    scoreReason: '专项资金申报窗口是打入新客户的切入点，可借助资金政策帮助目标客户立项，间接形成商机',
+    summary: '工信部发布2026年数字经济专项资金申报指南，A类资金重点支持数据治理平台建设，单项最高补贴500万，申报窗口为4月1日至5月31日，地方政府和国有企业均符合申报条件。',
+    nextAction: '关注A类资金申报窗口，挑选目标客户进行项目撮合',
+  },
 ]
 
 // 导出 PDF
@@ -44,30 +74,41 @@ function exportToPDF(briefing) {
       .header-stats{display:flex;gap:30px;margin:15px 0;padding:15px;background:#f8fbff;border-radius:8px;}
       .stat{text-align:center;} .stat .num{font-size:28px;font-weight:bold;color:#1677ff;display:block;}
       .stat.high .num{color:#f5a623;} .stat.med .num{color:#52c41a;}
-      .lead-item{border-left:4px solid #1677ff;padding:12px 16px;margin:8px 0;background:#f8fbff;border-radius:0 8px 8px 0;}
+      .lead-item{border-left:4px solid #1677ff;padding:12px 16px;margin:10px 0;background:#f8fbff;border-radius:0 8px 8px 0;}
       .lead-item.high{border-color:#52c41a;background:#f6ffed;} .lead-item.mock{border-color:#d9d9d9;background:#fafafa;opacity:0.8;}
-      .score{display:inline-block;width:34px;height:34px;border-radius:50%;background:#1677ff;color:white;text-align:center;line-height:34px;font-weight:bold;font-size:12px;margin-right:10px;}
-      .score.high{background:#52c41a;} .action{color:#1677ff;font-style:italic;font-size:12px;margin-top:6px;}
+      .lead-title{display:flex;align-items:center;margin-bottom:8px;}
+      .score{display:inline-block;width:34px;height:34px;border-radius:50%;background:#1677ff;color:white;text-align:center;line-height:34px;font-weight:bold;font-size:12px;margin-right:10px;flex-shrink:0;}
+      .score.high{background:#52c41a;}
+      .field{padding:4px 8px;margin-top:5px;border-radius:4px;font-size:12px;line-height:1.6;}
+      .field.summary{background:#f5f5f5;color:#444;}
+      .field.reason{background:#fffbe6;color:#874d00;}
+      .field.contact{background:#e6f7ff;color:#0958d9;}
+      .field.action{background:#f0f5ff;color:#1677ff;}
+      .field.link a{color:#1677ff;}
       .footer{margin-top:30px;padding-top:15px;border-top:1px solid #eee;color:#999;font-size:11px;text-align:center;}
       @media print{body{margin:15px;} .no-print{display:none;}}
     </style>
   </head><body>
-    <h1>👅 智鹰ToG商机日报</h1>
+    <h1>🦅 智鹰ToG商机日报</h1>
     <p>日期：<strong>${briefing.date}</strong> &nbsp;&nbsp; 系统自动生成 &nbsp;&nbsp; 已推送至：${(briefing.sentChannels || []).join('、')}</p>
     <div class="header-stats">
       <div class="stat"><span class="num">${briefing.stats.total}</span>总线索</div>
-      <div class="stat high"><span class="num">${briefing.stats.high}</span>高分≥⁰</div>
+      <div class="stat high"><span class="num">${briefing.stats.high}</span>高分≥70</div>
       <div class="stat med"><span class="num">${briefing.stats.medium}</span>中分</div>
     </div>
-    <h2>📋 今日高优先级线索</h2>
+    <h2>📋 今日高优先级线索（AI评分 ≥ 70分）</h2>
     ${highlights.map((h, i) => `
       <div class="lead-item ${h.score >= 70 ? 'high' : ''} ${h.isMock ? 'mock' : ''}">
-        <div style="display:flex;align-items:center;">
+        <div class="lead-title">
           <span class="score ${h.score >= 70 ? 'high' : ''}">${h.score}</span>
-          <strong>[${String(i + 1).padStart(2, '0')}] ${h.title}${h.isMock ? ' (参考数据)' : ''}</strong>
+          <strong>【${String(i + 1).padStart(2, '0')}】${h.title}${h.isMock ? '（参考数据）' : ''}</strong>
         </div>
-        <div style="margin-top:6px;color:#666;">类型：${h.type || '-'} &nbsp; 地区：${h.region || '全国'}</div>
-        <div class="action">💡 建议动作：${h.nextAction || '-'}</div>
+        <div style="font-size:12px;color:#666;margin-bottom:4px;">类型：${h.type || '-'} &nbsp;·&nbsp; 地区：${h.region || '全国'}</div>
+        ${h.summary ? `<div class="field summary">📌 线索概述：${h.summary}</div>` : ''}
+        ${h.scoreReason ? `<div class="field reason">⭐ 评分理由：${h.scoreReason}</div>` : ''}
+        ${h.contact ? `<div class="field contact">👤 对接人：${h.contact}${h.contactRole ? `（${h.contactRole}）` : ''}</div>` : ''}
+        <div class="field action">💡 建议动作：${h.nextAction || '-'}</div>
+        ${h.sourceUrl ? `<div class="field link">🔗 原文链接：<a href="${h.sourceUrl}" target="_blank">${h.sourceUrl}</a></div>` : ''}
       </div>`).join('')}
     <div class="footer">智鹰ToG商机智能系统 · 中科闻歌 &copy; ${new Date().getFullYear()}</div>
   </body></html>`
@@ -93,24 +134,34 @@ function exportToWord(briefing) {
     h2{color:#1677ff;font-size:14pt;margin-top:16pt;}
     p{line-height:1.6;}
     .stat-row{margin:10pt 0;}
-    .lead-box{border-left:4pt solid #1677ff;padding:8pt 12pt;margin:8pt 0;background:#f8fbff;}
+    .lead-box{border-left:4pt solid #1677ff;padding:8pt 12pt;margin:10pt 0;background:#f8fbff;}
     .lead-box.high{border-color:#52c41a;background:#f6ffed;}
     .score{font-weight:bold;color:#1677ff;font-size:14pt;}
     .score.high{color:#52c41a;}
+    .field{margin:4pt 0;font-size:11pt;padding:3pt 6pt;border-radius:3pt;}
+    .summary{background:#f5f5f5;color:#444;}
+    .reason{background:#fffbe6;color:#874d00;}
+    .contact{background:#e6f7ff;color:#0958d9;}
+    .action{background:#f0f5ff;color:#1677ff;}
   </style></head><body>
-  <h1>👅 智鹰ToG商机日报</h1>
+  <h1>🦅 智鹰ToG商机日报</h1>
   <p><b>日期：</b>${briefing.date} &nbsp;&nbsp; <b>推送渠道：</b>${(briefing.sentChannels || []).join('、')}</p>
   <div class="stat-row">总线索：<b>${briefing.stats.total}</b>条 &nbsp;&nbsp; 高分(≥70)：<b>${briefing.stats.high}</b>条 &nbsp;&nbsp; 中分：<b>${briefing.stats.medium}</b>条</div>
-  <h2>📋 今日高优先级线索</h2>
+  <h2>📋 今日高优先级线索（AI评分 ≥ 70分）</h2>
   ${highlights.map((h, i) => `
     <div class="lead-box ${h.score >= 70 ? 'high' : ''}">
-      <p><span class="score ${h.score >= 70 ? 'high' : ''}">${h.score}分</span> &nbsp; <b>[${String(i + 1).padStart(2, '0')}] ${h.title}${h.isMock ? '（参考）' : ''}</b></p>
-      <p>类型：${h.type || '-'} | 地区：${h.region || '全国'}</p>
-      <p><i>💡 建议动作：${h.nextAction || '-'}</i></p>
+      <p><span class="score ${h.score >= 70 ? 'high' : ''}">${h.score}分</span> &nbsp; <b>【${String(i + 1).padStart(2, '0')}】${h.title}${h.isMock ? '（参考）' : ''}</b></p>
+      <p>类型：${h.type || '-'} &nbsp;·&nbsp; 地区：${h.region || '全国'}</p>
+      ${h.summary ? `<p class="field summary">📌 线索概述：${h.summary}</p>` : ''}
+      ${h.scoreReason ? `<p class="field reason">⭐ 评分理由：${h.scoreReason}</p>` : ''}
+      ${h.contact ? `<p class="field contact">👤 对接人：${h.contact}${h.contactRole ? `（${h.contactRole}）` : ''}</p>` : ''}
+      <p class="field action">💡 建议动作：${h.nextAction || '-'}</p>
+      ${h.sourceUrl ? `<p>🔗 原文链接：<a href="${h.sourceUrl}">${h.sourceUrl}</a></p>` : ''}
     </div>`).join('')}
   <p style="margin-top:20pt;color:#999;font-size:10pt;text-align:center;">智鹰ToG商机智能系统 · 中科闻歌</p>
   </body></html>`
-  const blob = new Blob(['﻿', html], { type: 'application/msword' })
+  const blob = new Blob(['\ufeff', html], { type: 'application/msword' })
+  const url = URL.createObjectURL(blob)
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url; a.download = `智鹰商机日报_${briefing.date}.doc`
@@ -214,7 +265,7 @@ function BriefingReport({ briefing, isTodayBriefing = false }) {
           }
         </Paragraph>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <Text strong style={{ fontSize: 13, color: '#444' }}>📋 今日高优先级线索（AI评分 ≥ 60分）</Text>
+          <Text strong style={{ fontSize: 13, color: '#444' }}>📋 今日高优先级线索（AI评分 ≥ 70分）</Text>
           {isTodayBriefing && (
             <Dropdown menu={{
               items: [
@@ -258,7 +309,34 @@ function BriefingReport({ briefing, isTodayBriefing = false }) {
                   <Tag color={TYPE_COLORS[h.type]} style={{ fontSize: 11, margin: 0 }}>{h.type}</Tag>
                   <Text type="secondary" style={{ fontSize: 11 }}>{h.region}</Text>
                 </Space>
-                <div style={{ marginTop: 6, padding: '5px 8px', background: 'rgba(255,255,255,0.7)', borderRadius: 4 }}>
+                {h.summary && (
+                  <div style={{ marginTop: 6, padding: '5px 8px', background: 'rgba(0,0,0,0.03)', borderRadius: 4 }}>
+                    <Text style={{ fontSize: 12, color: '#555' }}>📌 线索概述：{h.summary}</Text>
+                  </div>
+                )}
+                {h.scoreReason && (
+                  <div style={{ marginTop: 4, padding: '5px 8px', background: 'rgba(250,173,20,0.08)', borderRadius: 4 }}>
+                    <Text style={{ fontSize: 12, color: '#ad6800' }}>⭐ 评分理由：{h.scoreReason}</Text>
+                  </div>
+                )}
+                {(h.contact) && (
+                  <div style={{ marginTop: 4, padding: '5px 8px', background: 'rgba(22,119,255,0.05)', borderRadius: 4 }}>
+                    <Text style={{ fontSize: 12, color: '#333' }}>
+                      👤 对接人：{h.contact}{h.contactRole ? `（${h.contactRole}）` : ''}
+                    </Text>
+                  </div>
+                )}
+                {h.sourceUrl && (
+                  <div style={{ marginTop: 4, padding: '5px 8px', background: 'rgba(0,0,0,0.02)', borderRadius: 4 }}>
+                    <Text style={{ fontSize: 12 }}>
+                      🔗 原文链接：
+                      <a href={h.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#1677ff' }}>
+                        查看原文
+                      </a>
+                    </Text>
+                  </div>
+                )}
+                <div style={{ marginTop: 4, padding: '5px 8px', background: 'rgba(255,255,255,0.7)', borderRadius: 4 }}>
                   <Text style={{ fontSize: 12, color: '#1677ff' }}>
                     💡 建议动作：{h.nextAction}
                   </Text>

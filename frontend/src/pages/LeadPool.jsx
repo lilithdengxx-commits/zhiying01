@@ -34,7 +34,7 @@ const STATUS_OPTIONS = [
 
 const SCORE_OPTIONS = [
   { value: '', label: '全部评分' },
-  { value: '80', label: '≥80 高分' },
+  { value: '70', label: '≥70 高分' },
   { value: '60', label: '≥60 中分' },
 ]
 
@@ -303,7 +303,7 @@ export default function LeadPool() {
     },
   ]
 
-  const highCount = leads.filter(l => l.score >= 80).length
+  const highCount = leads.filter(l => l.score >= 70).length
   const pendingCount = leads.filter(l => l.status === 'pending').length
 
   return (
@@ -324,7 +324,7 @@ export default function LeadPool() {
       <Row gutter={12} style={{ marginBottom: 16 }}>
         {[
           { label: '线索总量', value: leads.length, color: '#1677ff' },
-          { label: '高分(≥80)', value: highCount, color: '#f5222d' },
+          { label: '高分(≥70)', value: highCount, color: '#f5222d' },
           { label: '待跟进', value: pendingCount, color: '#fa8c16' },
           { label: '跟进中', value: leads.filter(l => l.status === 'contacting').length, color: '#52c41a' },
           { label: '已立项', value: leads.filter(l => l.status === 'filed').length, color: '#722ed1' },
